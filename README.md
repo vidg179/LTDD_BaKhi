@@ -8,12 +8,12 @@
 | --- | --- |
 | Tài khoản | Đăng ký email/mật khẩu, xác nhận email qua deep link, đăng nhập, đăng xuất, giữ phiên bằng Supabase Auth |
 | Sudoku | Dễ/vừa/khó, đề duy nhất một lời giải, ghi chú, kiểm tra lỗi, đồng hồ, tính điểm |
-| Xếp hình | Trượt ô 3×3 và 4×4; xáo trộn bằng nước hợp lệ, kiểm tra hoàn thành |
+| Xếp hình | Puzzle ảnh trượt ô: dễ 3×3, vừa 4×4, khó 5×5; 3 ảnh có sẵn hoặc chọn ảnh từ thư viện; xem ảnh mẫu và kiểm tra hoàn thành |
 | Caro | Bàn 15×15; máy dễ đi ngẫu nhiên gần quân, vừa đánh giá thế cờ, khó xét phản công; kiểm tra thắng/thua/hòa |
 | Rubik | Quét 6 mặt 3×3, sửa màu, bộ giải offline, hướng dẫn từng bước, thời gian và lỗi tự ghi nhận |
 | Điểm | Lưu lịch sử trên máy, đồng bộ kết quả của tài khoản khi có mạng, gửi lại không trùng bản ghi |
 | Xếp hạng | Kỷ lục cá nhân; online lấy kết quả tốt nhất mỗi người theo game và độ khó |
-| Thách đấu | Mời người chơi giải cùng đề Sudoku, chấp nhận/từ chối, tính giờ server, kiểm tra đáp án, xác định người thắng |
+| Thách đấu | Mời/chấp nhận/từ chối thách đấu; hỗ trợ Sudoku và Caro online, xác định người thắng/hòa, thoát hoặc tái đấu Caro |
 | Chat | Nhắn tin riêng, cập nhật Realtime, hiển thị 100 tin nhắn gần nhất của cuộc hội thoại |
 
 Game chơi được ở chế độ khách khi chưa cấu hình Supabase. **Đăng ký/đăng nhập, chat, thách đấu và xếp hạng online cần kết nối dự án Supabase thật.** Không có tài khoản hoặc cuộc hội thoại giả lập.
@@ -59,7 +59,7 @@ APK build không có tham số cấu hình chỉ chạy chế độ khách. Sau 
 - Điểm gốc: Sudoku 2000, Xếp hình 1500, Caro/Rubik 1000.
 - Hệ số Dễ/Vừa/Khó: 1/2/3. Rubik có hướng dẫn chỉ dùng hệ số 1.
 - Sudoku: nhập sai đáp án tính 1 lỗi. Nhập lại cùng giá trị không tính thêm; ghi chú không tính lỗi.
-- Xếp hình: chạm ô không kề khoảng trống tính 1 lỗi. Dễ dùng 3×3; Vừa/Khó dùng 4×4 với số bước xáo khác nhau.
+- Xếp hình: chạm ô không kề khoảng trống tính 1 lỗi. Dễ dùng 3×3, Vừa dùng 4×4, Khó dùng 5×5.
 - Caro dùng luật freestyle: ít nhất 5 quân liên tiếp là thắng, kể cả chặn hai đầu. Không tính lỗi chiến thuật. Thua/hòa được 0 điểm.
 - Rubik có hướng dẫn: tự ghi nhận lỗi; xác nhận từng bước trên khối thật. Khối đã giải sẵn không được điểm.
 - Ván đơn dừng đồng hồ khi tạm dừng hoặc app xuống nền. Ván chưa hoàn thành không tính điểm; rời ván đơn sẽ mất tiến độ.
@@ -104,9 +104,14 @@ npm test --prefix tool/backend_test
 
 Backend test thực thi migration trên PostgreSQL nhúng (PGlite), kiểm tra RLS, quyền gửi/đọc chat, điểm sinh ở database, trạng thái thách đấu và gửi lại kết quả. Đây không phải kiểm thử Supabase Auth/email/Realtime qua mạng.
 
+### Đã kiểm thử thực tế
+
+- Quét Rubik bằng camera trên điện thoại Android thật: hoạt động.
+- Chat Realtime giữa một điện thoại Android thật và một máy ảo Android: gửi và nhận tin nhắn thành công.
+
 ## Giới hạn cần biết khi báo cáo
 
-- Chưa kiểm thử camera trên điện thoại thật hoặc đăng nhập/chat hai thiết bị với project Supabase thật.
+- Chưa kiểm thử bản build iOS trên iPhone thật; cần macOS/Xcode để build và cài lên iOS.
 - Điểm chơi đơn và số lỗi vẫn do client báo; database tính lại điểm nhưng chưa có hệ thống chống gian lận cho giải đấu. Với thách đấu, server kiểm tra đề/đáp án và thời gian, còn số lỗi do client báo.
 - Độ khó Sudoku được phân theo số ô gợi ý, không chấm theo kỹ thuật giải của con người. Thách đấu dùng 3 đề chuẩn, hoán vị chữ số để hai người nhận cùng đề hợp lệ.
 - Chat chưa có thông báo đẩy, trạng thái đã đọc hoặc tệp đính kèm. Danh sách cộng đồng hiện lấy tối đa 100 người.
