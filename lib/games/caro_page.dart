@@ -18,13 +18,18 @@ class _CaroPageState extends State<CaroPage> {
   final _board = List.filled(caroSize * caroSize, 0);
   final _clock = GameClock();
   late final String _owner;
+  late final Future<String?> _session;
   bool _thinking = false, _finished = false;
   int _moves = 0, _last = -1;
+
+  /// The five (or more) stones that decided the game, highlighted.
+  List<int> _winLine = const [];
   String? _error;
   @override
   void initState() {
     super.initState();
     _owner = widget.store.owner;
+    _session = widget.store.startGameSession(GameKind.caro, widget.difficulty);
   }
 
   @override
@@ -34,13 +39,18 @@ class _CaroPageState extends State<CaroPage> {
   }
 
   Future<bool> _check(int index, int player) async {
-    final won = hasFive(_board, index, player);
+    final line = winningLine(_board, index, player);
+    final won = line != null;
     if (!won && _board.contains(0)) return false;
     _clock.finish();
     setState(() {
       _finished = true;
       _thinking = false;
+      _winLine = line ?? const [];
     });
+    // Let the player see the winning line before the result covers it.
+    if (won) await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return true;
     await showGameResult(
       context,
       widget.store,
@@ -51,6 +61,7 @@ class _CaroPageState extends State<CaroPage> {
       mistakes: 0,
       moves: _moves,
       outcome: won ? (player == 1 ? 'win' : 'loss') : 'draw',
+      session: _session,
     );
     return true;
   }
@@ -138,7 +149,9 @@ class _CaroPageState extends State<CaroPage> {
                           child: Container(
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: _last == i
+                              color: _winLine.contains(i)
+                                  ? const Color(0xffffe08a)
+                                  : _last == i
                                   ? const Color(0xffdce2ff)
                                   : Colors.white,
                               border: Border.all(
@@ -182,7 +195,7 @@ class _CaroPageState extends State<CaroPage> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Bạn đi X trước, máy đi O. Có từ 5 quân liên tiếp theo hàng, cột hoặc đường chéo là thắng (kể cả bị chặn hai đầu). Có thể phóng to bàn cờ bằng hai ngón tay.',
+                  'Bạn đi X trước, máy đi O. Có từ 5 quân liên tiếp theo hàng, cột hoặc đường chéo là thắng, trừ khi bị quân đối phương chặn cả hai đầu (mép bàn không tính là chặn). Có thể phóng to bàn cờ bằng hai ngón tay.',
                 ),
                 const SizedBox(height: 12),
                 const Text(

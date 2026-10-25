@@ -49,3 +49,7 @@ app.*.map.json
 # Local backend configuration (never use service_role keys in the app).
 config/supabase.json
 tool/backend_test/node_modules/
+
+# AI assistant tooling and personal editor settings, not part of the app.
+.agents/
+.claude/settings.local.json

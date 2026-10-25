@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'data/app_store.dart';
+import 'ui/app_theme.dart';
 import 'ui/app_shell.dart';
 
 Future<void> main() async {
@@ -54,96 +55,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Bá Khí Game Hub',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      fontFamily: 'Nunito', // If they added google_fonts, they can use it or we just fall back.
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFFFF9800),
-        primary: const Color(0xFFFF9800),
-        secondary: const Color(0xFF00BCD4),
-        surface: const Color(0xFFFFF8E1), // Warm background
-      ),
-      scaffoldBackgroundColor: const Color(0xFFFFF8E1),
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-          fontWeight: FontWeight.w900,
-          color: Color(0xFFFF5722),
-        ),
-        headlineMedium: TextStyle(
-          fontWeight: FontWeight.w900,
-          color: Color(0xFFFF5722),
-        ),
-        titleLarge: TextStyle(
-          fontWeight: FontWeight.w900,
-          color: Color(0xFF607D8B),
-        ),
-        bodyLarge: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-        bodyMedium: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          elevation: 6,
-          shadowColor: const Color(0xFFFF5722),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFFE0E0E0), width: 1.5),
-        ),
-        margin: const EdgeInsets.only(bottom: 16),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0), width: 1.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0), width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFFF9800), width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 16,
-        ),
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 10,
-        titleTextStyle: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
-          color: Color(0xFFFF5722),
-        ),
-      ),
-    ),
+    theme: AppTheme.light,
+    // Deliberately light-only: game boards, stickers and tiles use fixed
+    // colours chosen for a light background. A dark theme would need those
+    // moved into the colour scheme first.
+    themeMode: ThemeMode.light,
     home: AuthGate(store: store),
   );
 }

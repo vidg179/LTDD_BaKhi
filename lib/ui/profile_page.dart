@@ -2,6 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
 import '../games/game_models.dart';
+import 'app_theme.dart';
+
+/// ASCII addresses only: Supabase rejects accented ones such as
+/// nguyễn@gmail.com, and the form can say so before any request.
+final _emailPattern = RegExp(
+  r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$",
+);
+
+/// Rule for a new password: at least 8 characters with letters and digits.
+String? newPasswordProblem(String? value) {
+  final v = value ?? '';
+  return v.length < 8 ||
+          !v.contains(RegExp(r'[A-Za-zÀ-ỹ]')) ||
+          !v.contains(RegExp(r'[0-9]'))
+      ? 'Mật khẩu cần ít nhất 8 ký tự, gồm cả chữ và số.'
+      : null;
+}
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.store, this.onContinueAsGuest});
@@ -64,7 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _resendConfirmation() async {
     final email = _email.text.trim();
-    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+    if (!_emailPattern.hasMatch(email)) {
       setState(
         () => _message = 'Nhập đúng email đã đăng ký trước khi gửi lại.',
       );
@@ -80,6 +97,35 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(
           () =>
               _message = 'Đã gửi lại email xác nhận. Hãy kiểm tra cả thư rác.',
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _message = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _email.text.trim();
+    if (!_emailPattern.hasMatch(email)) {
+      setState(
+        () => _message =
+            'Nhập email của tài khoản vào ô Email, rồi bấm “Quên mật khẩu?”.',
+      );
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    try {
+      await widget.store.requestPasswordReset(email);
+      if (mounted) {
+        setState(
+          // Supabase answers the same for unknown addresses, so do not
+          // claim the account exists.
+          () => _message = 'Nếu email này đã đăng ký, thư đặt lại mật khẩu sẽ đến trong ít phút (kiểm tra cả thư rác). Hãy mở link trên chính điện thoại này.',
         );
       }
     } catch (e) {
@@ -234,10 +280,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       labelText: 'Email',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) =>
-                        !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                            .hasMatch(v?.trim() ?? '')
-                        ? 'Email chưa hợp lệ.'
+                    validator: (v) => !_emailPattern.hasMatch(v?.trim() ?? '')
+                        ? 'Email chưa hợp lệ (không dùng chữ có dấu hoặc khoảng trắng).'
                         : null,
                   ),
                   const SizedBox(height: 12),
@@ -254,14 +298,17 @@ class _ProfilePageState extends State<ProfilePage> {
                       labelText: 'Mật khẩu',
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
+                        tooltip: _obscure ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
                         onPressed: () => setState(() => _obscure = !_obscure),
                         icon: Icon(
                           _obscure ? Icons.visibility : Icons.visibility_off,
                         ),
                       ),
                     ),
-                    validator: (v) => (v?.length ?? 0) < (_register ? 8 : 1)
-                        ? 'Mật khẩu cần ít nhất ${_register ? 8 : 1} ký tự.'
+                    validator: (v) => _register
+                        ? newPasswordProblem(v)
+                        : (v?.isEmpty ?? true)
+                        ? 'Nhập mật khẩu.'
                         : null,
                     onFieldSubmitted: (_) {
                       if (!_busy && !_register) _authenticate();
@@ -297,6 +344,11 @@ class _ProfilePageState extends State<ProfilePage> {
                           : 'Đăng nhập',
                     ),
                   ),
+                  if (!_register)
+                    TextButton(
+                      onPressed: _busy ? null : _forgotPassword,
+                      child: const Text('Quên mật khẩu?'),
+                    ),
                   if (_awaitingConfirmation && !_register)
                     TextButton.icon(
                       onPressed: _busy ? null : _resendConfirmation,
@@ -339,6 +391,11 @@ class _ProfilePageState extends State<ProfilePage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(_message!),
+            ),
+          if (store.user == null && store.authNotice != null)
+            Text(
+              store.authNotice!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           if (store.startupError != null) Text(store.startupError!),
           if (store.storageWarning != null) Text(store.storageWarning!),
@@ -414,13 +471,13 @@ class _ProfilePageState extends State<ProfilePage> {
                       ? 'Hoàn thành'
                       : r.outcome == 'draw'
                       ? 'Hòa'
-                      : 'Thua'}${r.synced ? ' • Đã đồng bộ' : ''}',
+                      : 'Thua'}${r.synced ? ' • Đã đồng bộ' : ''}${r.synced && r.outcome == 'win' && r.ranked == false ? ', không xếp hạng' : ''}',
                 ),
                 trailing: Text(
                   '${r.score} đ',
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFFFF5722),
+                    color: AppColors.primary,
                     fontSize: 16,
                   ),
                 ),
@@ -429,6 +486,120 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       );
     },
+  );
+}
+
+/// Shown after a password reset link signed the user in.
+class NewPasswordPage extends StatefulWidget {
+  const NewPasswordPage({super.key, required this.store});
+  final AppStore store;
+  @override
+  State<NewPasswordPage> createState() => _NewPasswordPageState();
+}
+
+class _NewPasswordPageState extends State<NewPasswordPage> {
+  final _form = GlobalKey<FormState>();
+  final _password = TextEditingController(), _confirm = TextEditingController();
+  bool _busy = false, _obscure = true;
+  String? _message;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_form.currentState!.validate()) return;
+    // The page goes away as soon as recovery ends, so keep the messenger.
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    try {
+      await widget.store.updatePassword(_password.text);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đã đổi mật khẩu. Bạn đang đăng nhập.')),
+      );
+    } catch (e) {
+      if (mounted) setState(() => _message = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(24),
+    children: [
+      Text(
+        'Đặt mật khẩu mới',
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: 8),
+      Text(widget.store.user?.email ?? ''),
+      const SizedBox(height: 20),
+      Form(
+        key: _form,
+        child: Column(
+          children: [
+            TextFormField(
+              controller: _password,
+              enabled: !_busy,
+              obscureText: _obscure,
+              autofillHints: const [AutofillHints.newPassword],
+              decoration: InputDecoration(
+                labelText: 'Mật khẩu mới',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  tooltip: _obscure ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(
+                    _obscure ? Icons.visibility : Icons.visibility_off,
+                  ),
+                ),
+              ),
+              validator: (v) => newPasswordProblem(v),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _confirm,
+              enabled: !_busy,
+              obscureText: _obscure,
+              autofillHints: const [AutofillHints.newPassword],
+              decoration: const InputDecoration(
+                labelText: 'Nhập lại mật khẩu mới',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) =>
+                  v != _password.text ? 'Hai mật khẩu chưa giống nhau.' : null,
+              onFieldSubmitted: (_) {
+                if (!_busy) _save();
+              },
+            ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: _busy ? null : _save,
+              child: Text(_busy ? 'Đang lưu…' : 'Lưu mật khẩu mới'),
+            ),
+            TextButton(
+              onPressed: _busy ? null : widget.store.skipPasswordRecovery,
+              child: const Text('Để sau'),
+            ),
+          ],
+        ),
+      ),
+      if (_message != null)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            _message!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ),
+    ],
   );
 }
 

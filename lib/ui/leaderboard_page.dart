@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_store.dart';
 import '../games/game_models.dart';
+import 'app_theme.dart';
 
 class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({super.key, required this.store});
@@ -14,13 +15,23 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   GameKind _game = GameKind.sudoku;
   Difficulty _difficulty = Difficulty.easy;
   bool _online = false;
-  Future<List<Map<String, dynamic>>>? _request;
+  Future<(List<Map<String, dynamic>>, Map<String, dynamic>?)>? _request;
   void _reload() {
-    setState(
-      () => _request = _online && widget.store.user != null
-          ? widget.store.leaderboard(_game, _difficulty)
-          : null,
-    );
+    // A block body: an arrow returning the assigned Future makes setState
+    // throw in debug builds and skip the rebuild.
+    setState(() {
+      _request = _online && widget.store.user != null ? _load() : null;
+    });
+  }
+
+  /// Top 50 plus the player's own rank, which matters when they are not in
+  /// the top 50. A failed rank lookup only hides that line.
+  Future<(List<Map<String, dynamic>>, Map<String, dynamic>?)> _load() async {
+    final top = widget.store.leaderboard(_game, _difficulty);
+    final mine = widget.store
+        .myLeaderboardRank(_game, _difficulty)
+        .then<Map<String, dynamic>?>((v) => v, onError: (Object _) => null);
+    return (await top, await mine);
   }
 
   @override
@@ -38,7 +49,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
             final score = b.score.compareTo(a.score);
             if (score != 0) return score;
             final time = a.seconds.compareTo(b.seconds);
-            return time != 0 ? time : a.mistakes.compareTo(b.mistakes);
+            if (time != 0) return time;
+            final mistakes = a.mistakes.compareTo(b.mistakes);
+            // Same as online: an equal result achieved earlier ranks first.
+            return mistakes != 0 ? mistakes : a.playedAt.compareTo(b.playedAt);
           });
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -111,7 +125,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           ],
         ),
         const Text(
-          'So sánh trong cùng trò chơi và độ khó. Ưu tiên điểm cao, sau đó thời gian ngắn và ít lỗi. Online lấy kết quả tốt nhất của mỗi người.',
+          'So sánh trong cùng trò chơi và độ khó. Ưu tiên điểm cao, sau đó thời gian ngắn, ít lỗi, rồi ai đạt trước. Online lấy kết quả tốt nhất của mỗi người, chỉ tính ván được máy chủ ghi giờ (đăng nhập và có mạng khi bắt đầu ván).',
         ),
         const SizedBox(height: 16),
         if (!_online) ...[
@@ -137,7 +151,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   '${local[i].score} điểm',
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFFFF5722),
+                    color: AppColors.primary,
                   ),
                 ),
                 subtitle: Text(
@@ -150,7 +164,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
             'Kết nối dịch vụ online và đăng nhập ở mục Tài khoản để xem xếp hạng người chơi.',
           )
         else
-          FutureBuilder<List<Map<String, dynamic>>>(
+          FutureBuilder<(List<Map<String, dynamic>>, Map<String, dynamic>?)>(
             future: _request,
             builder: (_, snapshot) {
               if (snapshot.hasError) {
@@ -167,12 +181,37 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
               if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final data = snapshot.data!;
+              final (data, mine) = snapshot.data!;
               if (data.isEmpty) {
                 return const Text('Chưa có người chơi có điểm trong mục này.');
               }
+              final listed = data.any(
+                (row) => row['user_id'] == widget.store.owner,
+              );
               return Column(
                 children: [
+                  if (mine != null && !listed)
+                    Card(
+                      color: AppColors.primaryContainer,
+                      child: ListTile(
+                        leading: const Icon(Icons.person_pin_circle_outlined),
+                        title: Text(
+                          'Hạng của bạn: #${mine['rank']}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          '${clockLabel(mine['seconds'] as int)} • ${mine['mistakes']} lỗi • ngoài top 50',
+                        ),
+                        trailing: Text(
+                          '${mine['score']} đ',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
                   for (var i = 0; i < data.length; i++)
                     Card(
                       child: ListTile(
@@ -203,7 +242,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           '${data[i]['score']} đ',
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFFFF5722),
+                            color: AppColors.primary,
                             fontSize: 16,
                           ),
                         ),

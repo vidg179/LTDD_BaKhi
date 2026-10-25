@@ -16,12 +16,16 @@ class SudokuPage extends StatefulWidget {
     this.challengeId,
     this.puzzle,
     this.serverStart,
+    this.deadline,
   });
   final AppStore store;
   final Difficulty difficulty;
   final String? challengeId;
   final SudokuPuzzle? puzzle;
   final DateTime? serverStart;
+
+  /// Challenge only: answers after this time do not count.
+  final DateTime? deadline;
   @override
   State<SudokuPage> createState() => _SudokuPageState();
 }
@@ -30,7 +34,11 @@ class _SudokuPageState extends State<SudokuPage> {
   SudokuPuzzle? _puzzle;
   List<int> _board = [];
   final Map<int, Set<int>> _notes = {};
+
+  /// Clashing entries already counted as mistakes, as cell × 10 + digit.
+  final Set<int> _counted = {};
   GameClock? _clock;
+  Future<String?>? _session;
   late final String _owner;
   int _selected = -1, _mistakes = 0, _moves = 0;
   bool _noteMode = false, _finished = false, _submitting = false;
@@ -52,7 +60,12 @@ class _SudokuPageState extends State<SudokuPage> {
         _puzzle = puzzle;
         _board = List.of(puzzle.givens);
         _clock = GameClock(serverStart: widget.serverStart);
-        if (widget.challengeId != null) {
+        if (widget.challengeId == null) {
+          _session = widget.store.startGameSession(
+            GameKind.sudoku,
+            widget.difficulty,
+          );
+        } else {
           final draft = widget.store.challengeDraft(
             _owner,
             widget.challengeId!,
@@ -66,6 +79,8 @@ class _SudokuPageState extends State<SudokuPage> {
               )) {
             _board = List<int>.from(saved);
             _mistakes = (draft!['mistakes'] as int? ?? 0).clamp(0, 10000);
+            final counted = draft['counted'];
+            if (counted is List) _counted.addAll(counted.whereType<int>());
             _moves = (draft['moves'] as int? ?? 0).clamp(0, 1000000);
           }
         }
@@ -102,7 +117,14 @@ class _SudokuPageState extends State<SudokuPage> {
         _moves++;
         _board[_selected] = value;
         _notes.remove(_selected);
-        if (value != _puzzle!.solution[_selected]) _mistakes++;
+        // A mistake is a digit that clashes with one already in its row,
+        // column or box. The player can see that clash, so counting it gives
+        // nothing away (comparing with the solution would). Each digit counts
+        // once per cell, even if it is erased and entered again.
+        if (!canPlace(_board, _selected, value) &&
+            _counted.add(_selected * 10 + value)) {
+          _mistakes++;
+        }
       }
     });
     _saveDraft();
@@ -117,6 +139,7 @@ class _SudokuPageState extends State<SudokuPage> {
             'board': List.of(_board),
             'mistakes': _mistakes,
             'moves': _moves,
+            'counted': _counted.toList(),
           })
           .catchError((Object _) {
             if (mounted) {
@@ -146,6 +169,7 @@ class _SudokuPageState extends State<SudokuPage> {
       seconds: _clock!.seconds,
       mistakes: _mistakes,
       moves: _moves,
+      session: _session,
     );
   }
 
@@ -168,8 +192,9 @@ class _SudokuPageState extends State<SudokuPage> {
       );
       if (mounted) {
         setState(
-          () => _submissionMessage =
-              'Đã nộp: ${result['score']} điểm • ${clockLabel(result['seconds'] as int)}. Về mục Thách đấu để xem kết quả hai người.',
+          () => _submissionMessage = result['expired'] == true
+              ? 'Đã quá hạn nộp bài (24 giờ sau khi chấp nhận) nên bài này không được tính. Về mục Thách đấu để xem kết quả.'
+              : 'Đã nộp: ${result['score']} điểm • ${clockLabel(result['seconds'] as int)}. Về mục Thách đấu để xem kết quả hai người.',
         );
       }
     } catch (e) {
@@ -187,9 +212,11 @@ class _SudokuPageState extends State<SudokuPage> {
   Widget build(BuildContext context) {
     final clock = _clock;
     return GameExitGuard(
+      // Nothing to lose while the board is still being generated.
       finished:
+          _puzzle == null ||
           _finished &&
-          (widget.challengeId == null || _submissionMessage != null),
+              (widget.challengeId == null || _submissionMessage != null),
       child: Scaffold(
         appBar: AppBar(
           title: Text('Sudoku • ${difficultyLabels[widget.difficulty.index]}'),
@@ -208,8 +235,8 @@ class _SudokuPageState extends State<SudokuPage> {
                       padding: const EdgeInsets.all(16),
                       children: [
                         if (widget.challengeId != null)
-                          const Text(
-                            'THÁCH ĐẤU • Thời gian tính liên tục từ lúc bắt đầu, kể cả khi rời ứng dụng.',
+                          Text(
+                            'THÁCH ĐẤU • Thời gian tính liên tục từ lúc bắt đầu, kể cả khi rời ứng dụng.${widget.deadline == null ? '' : ' Hạn nộp: ${widget.deadline!.hour.toString().padLeft(2, '0')}:${widget.deadline!.minute.toString().padLeft(2, '0')} ngày ${widget.deadline!.day}/${widget.deadline!.month}.'}',
                           ),
                         GameStats(
                           clock: clock!,
@@ -232,9 +259,10 @@ class _SudokuPageState extends State<SudokuPage> {
                                     ),
                                 itemBuilder: (_, i) {
                                   final fixed = _puzzle!.givens[i] != 0;
+                                  // Clashes only: never reveals the solution.
                                   final wrong =
                                       _board[i] != 0 &&
-                                      _board[i] != _puzzle!.solution[i];
+                                      !canPlace(_board, i, _board[i]);
                                   final related =
                                       _selected >= 0 &&
                                       (i ~/ 9 == _selected ~/ 9 ||
@@ -356,8 +384,15 @@ class _SudokuPageState extends State<SudokuPage> {
                           ],
                         ),
                         const Text(
-                          'Chọn ô rồi nhập số. Mỗi lần nhập sai đáp án tính 1 lỗi (−100 điểm); ghi chú không tính lỗi. Độ khó dựa trên số ô gợi ý. Mỗi đề có một lời giải duy nhất.',
+                          'Chọn ô rồi nhập số. Nhập số trùng với số đã có trong cùng hàng, cột hoặc khối 3×3 tính 1 lỗi (−5% điểm), mỗi số chỉ tính một lần cho mỗi ô; ghi chú không tính lỗi. App không cho biết số chưa trùng là đúng hay sai. Độ khó theo kỹ thuật cần dùng: Dễ chỉ cần điền ô chỉ còn một số hoặc số chỉ còn một chỗ; Vừa cần loại trừ theo cặp số và theo hàng/khối; Khó cần kỹ thuật nâng cao hơn. Mỗi đề có một lời giải duy nhất.',
                         ),
+                        if (!_finished && !_board.contains(0))
+                          const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text(
+                              'Bảng đã đầy nhưng chưa đúng: còn ô bị trùng (tô đỏ). Hãy sửa lại.',
+                            ),
+                          ),
                         if (_finished && widget.challengeId == null)
                           const Padding(
                             padding: EdgeInsets.all(16),

@@ -409,7 +409,12 @@ class _FaceEditorState extends State<FaceEditor> {
           SizedBox(
             width: 180,
             height: 180,
-            child: Image.memory(widget.photo!, fit: BoxFit.cover),
+            child: Image.memory(
+              widget.photo!,
+              cacheWidth: (180 * MediaQuery.devicePixelRatioOf(context))
+                  .round(),
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(height: 16),
         ],
