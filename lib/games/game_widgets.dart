@@ -27,6 +27,10 @@ class GameClock extends ChangeNotifier with WidgetsBindingObserver {
       (serverStart == null
           ? _watch.elapsed.inSeconds
           : DateTime.now().difference(serverStart!).inSeconds.clamp(0, 604800));
+
+  /// Running time of a solo clock to the millisecond, pauses excluded.
+  Duration get elapsed => _watch.elapsed;
+
   void togglePause() {
     manualPause = !manualPause;
     _update();
@@ -131,7 +135,14 @@ Future<void> showGameResult(
   required int mistakes,
   required int moves,
   String outcome = 'win',
+  Future<String?>? session,
 }) async {
+  // Normally finished long ago; a slow start only costs the online ranking.
+  final sessionId = await session?.timeout(
+    const Duration(seconds: 3),
+    onTimeout: () => null,
+  );
+  if (!context.mounted) return;
   final result = GameResult(
     id: const Uuid().v4(),
     owner: owner,
@@ -142,6 +153,7 @@ Future<void> showGameResult(
     moves: moves,
     outcome: outcome,
     playedAt: DateTime.now(),
+    sessionId: sessionId,
   );
   await showDialog<void>(
     context: context,

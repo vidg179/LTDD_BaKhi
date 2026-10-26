@@ -6,6 +6,25 @@ import '../games/game_models.dart';
 import '../games/online_caro_page.dart';
 import '../games/sudoku_engine.dart';
 import '../games/sudoku_page.dart';
+import 'app_theme.dart';
+
+/// Local "HH:mm dd/MM" for a server timestamp.
+String _when(Object? iso) {
+  if (iso is! String) return '';
+  final t = DateTime.parse(iso).toLocal();
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(t.hour)}:${two(t.minute)} ${t.day}/${t.month}';
+}
+
+bool _past(Object? iso) =>
+    iso is String && DateTime.parse(iso).isBefore(DateTime.now());
+
+String _endReason(Map<String, dynamic> challenge) =>
+    switch (challenge['end_reason']) {
+      'timeout' => ' (hết giờ)',
+      'resign' => ' (đầu hàng)',
+      _ => '',
+    };
 
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key, required this.store});
@@ -124,6 +143,18 @@ class _CommunityPageState extends State<CommunityPage> {
     }
     await _action(() async {
       final data = await widget.store.startChallenge(challenge['id']);
+      if (data['status'] == 'completed') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Thách đấu đã kết thúc vì quá hạn 24 giờ. Xem kết quả để biết người thắng.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
       final puzzle = SudokuPuzzle.fromGivens(List<int>.from(data['givens']));
       // Offset with server time so device clock skew does not affect the display.
       final elapsed = DateTime.parse(data['server_now'])
@@ -138,11 +169,62 @@ class _CommunityPageState extends State<CommunityPage> {
             challengeId: challenge['id'],
             puzzle: puzzle,
             serverStart: localStart,
+            deadline: data['deadline_at'] is String
+                ? DateTime.parse(data['deadline_at']).toLocal()
+                : null,
           ),
         ),
       );
       if (mounted) setState(_load);
     });
+  }
+
+  Future<void> _cancel(Map<String, dynamic> challenge) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hủy lời mời?'),
+        content: const Text(
+          'Đối thủ sẽ không chấp nhận được lời mời này nữa. Bạn có thể gửi lời mời mới bất cứ lúc nào.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Giữ lời mời'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hủy lời mời'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _action(() => widget.store.cancelChallenge(challenge['id']));
+  }
+
+  Future<void> _resign(Map<String, dynamic> challenge) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đầu hàng?'),
+        content: const Text(
+          'Đối thủ sẽ được tính thắng thách đấu này. Không thể hoàn tác.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Chơi tiếp'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Đầu hàng'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _action(() => widget.store.resignChallenge(challenge['id']));
   }
 
   Future<void> _results(
@@ -171,7 +253,7 @@ class _CommunityPageState extends State<CommunityPage> {
                       ? 'Ván đấu đang diễn ra.'
                       : winnerId == null
                       ? 'Hai người hòa nhau.'
-                      : 'Người chiến thắng: ${names[winnerId] ?? 'Người chơi'}',
+                      : 'Người chiến thắng: ${names[winnerId] ?? 'Người chơi'}${_endReason(challenge)}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -211,8 +293,8 @@ class _CommunityPageState extends State<CommunityPage> {
               if (challenge['status'] == 'completed')
                 Text(
                   challenge['winner_id'] == null
-                      ? 'Hai người hòa nhau.'
-                      : 'Người thắng: ${names[challenge['winner_id']] ?? 'Người chơi'}',
+                      ? 'Hai người hòa nhau.${_endReason(challenge)}'
+                      : 'Người thắng: ${names[challenge['winner_id']] ?? 'Người chơi'}${_endReason(challenge)}',
                 ),
             ],
           ),
@@ -302,14 +384,14 @@ class _CommunityPageState extends State<CommunityPage> {
               Card(
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: const Color(0xFF03A9F4),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     child: Text(
-                      (p['display_name'] as String).isNotEmpty
-                          ? (p['display_name'] as String)
-                                .substring(0, 1)
-                                .toUpperCase()
-                          : '?',
+                      // Grapheme-aware so names starting with an emoji or a
+                      // combining mark are not split in half.
+                      (p['display_name'] as String).characters.firstOrNull
+                              ?.toUpperCase() ??
+                          '?',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -363,6 +445,11 @@ class _CommunityPageState extends State<CommunityPage> {
                   children: data.data!.map((c) {
                     final status = c['status'];
                     final received = c['opponent_id'] == widget.store.owner;
+                    final caro = (c['game'] ?? 'sudoku') == 'caro';
+                    // The server refuses expired invites; this only hides
+                    // the buttons sooner.
+                    final expired =
+                        status == 'pending' && _past(c['expires_at']);
                     return Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -378,11 +465,14 @@ class _CommunityPageState extends State<CommunityPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${(c['game'] ?? 'sudoku') == 'caro' ? 'Cờ Caro' : 'Sudoku • ${difficultyLabels[Difficulty.values.byName(c['difficulty']).index]}'} • ${switch (status) {
-                                'pending' => 'Chờ chấp nhận',
-                                'accepted' => 'Đang thi đấu',
+                              '${caro ? 'Cờ Caro' : 'Sudoku • ${difficultyLabels[Difficulty.values.byName(c['difficulty']).index]}'} • ${switch (status) {
+                                'pending' when expired => 'Đã hết hạn',
+                                'pending' => 'Chờ chấp nhận • hết hạn lúc ${_when(c['expires_at'])}',
+                                'accepted' when caro => 'Đang thi đấu • vào trận trước ${_when(c['deadline_at'])}, mỗi lượt 60 giây',
+                                'accepted' => 'Đang thi đấu • hạn nộp ${_when(c['deadline_at'])}',
                                 'declined' => 'Đã từ chối',
-                                _ => 'Đã hoàn thành',
+                                'cancelled' => 'Người gửi đã hủy',
+                                _ => 'Đã hoàn thành${_endReason(c)}',
                               }}',
                               style: const TextStyle(color: Colors.black54),
                             ),
@@ -390,7 +480,9 @@ class _CommunityPageState extends State<CommunityPage> {
                             Wrap(
                               spacing: 8,
                               children: [
-                                if (status == 'pending' && received) ...[
+                                if (status == 'pending' &&
+                                    received &&
+                                    !expired) ...[
                                   FilledButton(
                                     onPressed: _busy
                                         ? null
@@ -414,10 +506,22 @@ class _CommunityPageState extends State<CommunityPage> {
                                     child: const Text('Từ chối'),
                                   ),
                                 ],
+                                if (status == 'pending' &&
+                                    !received &&
+                                    !expired)
+                                  TextButton(
+                                    onPressed: _busy ? null : () => _cancel(c),
+                                    child: const Text('Hủy lời mời'),
+                                  ),
                                 if (status == 'accepted')
                                   FilledButton(
                                     onPressed: _busy ? null : () => _start(c),
                                     child: const Text('Bắt đầu / tiếp tục'),
+                                  ),
+                                if (status == 'accepted')
+                                  TextButton(
+                                    onPressed: _busy ? null : () => _resign(c),
+                                    child: const Text('Đầu hàng'),
                                   ),
                                 if (status == 'accepted' ||
                                     status == 'completed')
@@ -467,7 +571,16 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _send() async {
     final body = _input.text.trim();
-    if (body.isEmpty || body.length > 2000 || _sending) return;
+    if (body.isEmpty || _sending) return;
+    // The database limits char_length, which counts code points; String.length
+    // counts UTF-16 units and the field's counter counts graphemes.
+    if (body.runes.length > 2000) {
+      setState(
+        () => _error =
+            'Tin nhắn quá dài (${body.runes.length}/2000 ký tự). Hãy tách thành nhiều tin.',
+      );
+      return;
+    }
     setState(() {
       _sending = true;
       _error = null;
@@ -538,7 +651,9 @@ class _ChatPageState extends State<ChatPage> {
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: mine ? const Color(0xffdde2ff) : Colors.white,
+                          color: mine
+                              ? AppColors.primaryContainer
+                              : AppColors.surface,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
@@ -561,7 +676,10 @@ class _ChatPageState extends State<ChatPage> {
           ),
           if (_error != null)
             Padding(padding: const EdgeInsets.all(8), child: Text(_error!)),
+          // Keyed so the error line appearing above does not rebuild the
+          // field, which would drop focus and close the keyboard.
           Padding(
+            key: const ValueKey('chat-input'),
             padding: const EdgeInsets.all(12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -569,7 +687,9 @@ class _ChatPageState extends State<ChatPage> {
                 Expanded(
                   child: TextField(
                     controller: _input,
-                    enabled: !_sending,
+                    // readOnly rather than disabled keeps the keyboard open
+                    // between messages.
+                    readOnly: _sending,
                     minLines: 1,
                     maxLines: 4,
                     maxLength: 2000,

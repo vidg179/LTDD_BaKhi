@@ -18,19 +18,20 @@ class PuzzlePage extends StatefulWidget {
 
 class _PuzzlePageState extends State<PuzzlePage> {
   static const _images = [
-    ('Núi và hồ', 'assets/images/puzzle_landscape.png'),
-    ('Biển và hải đăng', 'assets/images/puzzle_coast.png'),
-    ('Vườn Nhật Bản', 'assets/images/puzzle_garden.png'),
+    ('Núi và hồ', 'assets/images/puzzle_landscape.jpg'),
+    ('Biển và hải đăng', 'assets/images/puzzle_coast.jpg'),
+    ('Vườn Nhật Bản', 'assets/images/puzzle_garden.jpg'),
   ];
   late final _puzzle = SlidingPuzzle(
     [3, 4, 5][widget.difficulty.index],
     steps: [35, 90, 180][widget.difficulty.index],
   );
   ImageProvider<Object> _image = const AssetImage(
-    'assets/images/puzzle_landscape.png',
+    'assets/images/puzzle_landscape.jpg',
   );
   String _imageName = 'Núi và hồ';
   late final String _owner;
+  late final Future<String?> _session;
   final _clock = GameClock();
   int _moves = 0, _mistakes = 0;
   bool _finished = false;
@@ -38,6 +39,10 @@ class _PuzzlePageState extends State<PuzzlePage> {
   void initState() {
     super.initState();
     _owner = widget.store.owner;
+    _session = widget.store.startGameSession(
+      GameKind.puzzle,
+      widget.difficulty,
+    );
   }
 
   @override
@@ -67,6 +72,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
         seconds: _clock.seconds,
         mistakes: _mistakes,
         moves: _moves,
+        session: _session,
       );
     }
   }
@@ -75,9 +81,17 @@ class _PuzzlePageState extends State<PuzzlePage> {
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Ảnh hoàn chỉnh'),
-      content: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Image(image: _image, fit: BoxFit.cover),
+      // Square and centre-cropped exactly like the tiles, so a photo that is
+      // not square shows the same part that is being assembled.
+      content: SizedBox(
+        width: 320,
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image(image: _image, fit: BoxFit.cover),
+          ),
+        ),
       ),
       actions: [
         FilledButton(
@@ -110,6 +124,9 @@ class _PuzzlePageState extends State<PuzzlePage> {
                     _images[i].$2,
                     width: 56,
                     height: 56,
+                    // Decode a thumbnail instead of the full 1254px image.
+                    cacheWidth: (56 * MediaQuery.devicePixelRatioOf(context))
+                        .round(),
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -253,7 +270,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Chạm ô không kề khoảng trống tính 1 lỗi (−100 điểm). Dễ: 3×3; Vừa: 4×4; Khó: 5×5.',
+                  'Chạm ô không kề khoảng trống tính 1 lỗi (−5% điểm). Dễ: 3×3; Vừa: 4×4; Khó: 5×5.',
                 ),
                 if (_finished)
                   const Padding(
