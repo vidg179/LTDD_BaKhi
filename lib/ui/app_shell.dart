@@ -345,7 +345,7 @@ class GameMenu extends StatelessWidget {
                   title: const Text('Cách tính điểm'),
                   content: const SingleChildScrollView(
                     child: Text(
-                      'Điểm tối đa = điểm gốc × hệ số độ khó. Giải càng nhanh càng gần điểm tối đa: giải đúng bằng thời gian chuẩn được một nửa, chậm gấp ba được một phần tư. Mỗi lỗi trừ thêm 5% số điểm còn lại. Thắng luôn có điểm; thua hoặc hòa được 0.\n\nĐiểm gốc: Sudoku 2000; Xếp hình 1500; Caro và Rubik 1000. Hệ số Dễ/Vừa/Khó: 1/2/3.\n\nThời gian chuẩn (Dễ/Vừa/Khó): Sudoku 10/15/25 phút; Xếp hình 1/4/10 phút; Caro 2/4/6 phút; Rubik có hướng dẫn 3 phút.',
+                      'Điểm tối đa = điểm gốc × hệ số độ khó. Giải càng nhanh càng gần điểm tối đa: giải đúng bằng thời gian chuẩn được một nửa, chậm gấp ba được một phần tư. Mỗi lỗi trừ thêm 5% số điểm còn lại. Thắng luôn có điểm; thua hoặc hòa được 0.\n\nĐiểm gốc: Sudoku 2000; Xếp hình 1500; Caro 1000. Rubik là phần hướng dẫn giải nên không tính điểm. Hệ số Dễ/Vừa/Khó: 1/2/3.\n\nThời gian chuẩn (Dễ/Vừa/Khó): Sudoku 10/15/25 phút; Xếp hình 1/4/10 phút; Caro 2/4/6 phút.',
                     ),
                   ),
                   actions: [

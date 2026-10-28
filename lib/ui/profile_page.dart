@@ -33,9 +33,13 @@ class _ProfilePageState extends State<ProfilePage> {
   final _name = TextEditingController(),
       _email = TextEditingController(),
       _password = TextEditingController(),
-      _confirmPassword = TextEditingController();
+      _confirmPassword = TextEditingController(),
+      _code = TextEditingController();
   bool _register = false, _busy = false, _obscure = true;
   bool _awaitingConfirmation = false;
+
+  /// A reset code was emailed; the form asks for it.
+  bool _awaitingResetCode = false;
   String? _message;
   @override
   void dispose() {
@@ -43,6 +47,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _email.dispose();
     _password.dispose();
     _confirmPassword.dispose();
+    _code.dispose();
     super.dispose();
   }
 
@@ -61,10 +66,9 @@ class _ProfilePageState extends State<ProfilePage> {
         );
         if (mounted) {
           setState(() {
-            _message = signedIn
-                ? 'Đã tạo tài khoản.'
-                : 'Hãy mở email xác nhận tài khoản, sau đó quay lại đăng nhập.';
+            _message = signedIn ? 'Đã tạo tài khoản.' : 'Đã gửi mã xác nhận tới email. Nhập mã bên dưới để kích hoạt tài khoản (kiểm tra cả thư rác).';
             _awaitingConfirmation = !signedIn;
+            _awaitingResetCode = false;
             _register = false;
           });
         }
@@ -125,8 +129,44 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(
           // Supabase answers the same for unknown addresses, so do not
           // claim the account exists.
-          () => _message = 'Nếu email này đã đăng ký, thư đặt lại mật khẩu sẽ đến trong ít phút (kiểm tra cả thư rác). Hãy mở link trên chính điện thoại này.',
+          () {
+            _message = 'Nếu email này đã đăng ký, mã đặt lại mật khẩu sẽ đến trong ít phút (kiểm tra cả thư rác). Nhập mã bên dưới.';
+            _awaitingResetCode = true;
+            _awaitingConfirmation = false;
+          },
         );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _message = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Sign-up confirmation or password reset, whichever code was sent.
+  Future<void> _verifyCode() async {
+    final email = _email.text.trim();
+    final code = _code.text.trim();
+    if (!RegExp(r'^[0-9]{6,10}$').hasMatch(code)) {
+      setState(() => _message = 'Nhập mã gồm các chữ số trong email.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    try {
+      if (_awaitingResetCode) {
+        await widget.store.verifyRecoveryCode(email, code);
+      } else {
+        await widget.store.verifySignupCode(email, code);
+      }
+      if (mounted) {
+        setState(() {
+          _awaitingConfirmation = false;
+          _awaitingResetCode = false;
+          _code.clear();
+        });
       }
     } catch (e) {
       if (mounted) setState(() => _message = friendlyError(e));
@@ -349,11 +389,35 @@ class _ProfilePageState extends State<ProfilePage> {
                       onPressed: _busy ? null : _forgotPassword,
                       child: const Text('Quên mật khẩu?'),
                     ),
+                  if ((_awaitingConfirmation || _awaitingResetCode) &&
+                      !_register) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _code,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.number,
+                      maxLength: 10,
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      decoration: InputDecoration(
+                        labelText: _awaitingResetCode
+                            ? 'Mã đặt lại mật khẩu'
+                            : 'Mã xác nhận tài khoản',
+                        border: const OutlineInputBorder(),
+                      ),
+                      onSubmitted: (_) {
+                        if (!_busy) _verifyCode();
+                      },
+                    ),
+                    FilledButton.tonal(
+                      onPressed: _busy ? null : _verifyCode,
+                      child: const Text('Xác nhận mã'),
+                    ),
+                  ],
                   if (_awaitingConfirmation && !_register)
                     TextButton.icon(
                       onPressed: _busy ? null : _resendConfirmation,
                       icon: const Icon(Icons.mark_email_unread_outlined),
-                      label: const Text('Gửi lại email xác nhận'),
+                      label: const Text('Gửi lại mã xác nhận'),
                     ),
                   if (widget.onContinueAsGuest != null)
                     TextButton(

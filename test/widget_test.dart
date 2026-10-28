@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:bakhi_gameapp/data/app_store.dart';
 import 'package:bakhi_gameapp/rubik/rubik_page.dart';
 import 'package:bakhi_gameapp/rubik/solution_page.dart';
 import 'package:bakhi_gameapp/rubik/cube_service.dart';
@@ -102,60 +100,30 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('A scored guided solve waits 2 seconds per step', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final store = AppStore(await SharedPreferences.getInstance());
-    addTearDown(store.dispose);
+  testWidgets('The Rubik guide keeps no clock and records no score', (
+    tester,
+  ) async {
     final scrambled = cube.Cube.solved.move(cube.Move.right).move(cube.Move.up);
     await tester.pumpWidget(
       MaterialApp(
         home: SolutionPage(
-          store: store,
           definition: scrambled.definition,
           moves: const ["U'", "R'"],
           centers: Sticker.values,
         ),
       ),
     );
+    expect(find.byTooltip('Tạm dừng'), findsNothing);
+    expect(find.textContaining('Ghi nhận'), findsNothing);
     FilledButton next() => tester.widget<FilledButton>(
-      find.ancestor(
-        of: find.textContaining('Đã xoay xong'),
-        matching: find.byType(FilledButton),
-      ),
+      find.widgetWithText(FilledButton, 'Đã xoay xong'),
     );
-    expect(find.text('Đã xoay xong (2)'), findsOneWidget);
-    expect(next().onPressed, isNull);
-
-    // The game clock is a real Stopwatch, so let real time pass.
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 2100)),
-    );
-    await tester.pump(const Duration(seconds: 2));
-    expect(find.text('Đã xoay xong'), findsOneWidget);
+    // Steps can be followed at the solver's own pace, without waiting.
     next().onPressed!();
     await tester.pump();
-    // The next step is locked again straight away.
-    expect(find.text('Đã xoay xong (2)'), findsOneWidget);
+    next().onPressed!();
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
     expect(next().onPressed, isNull);
-
-    await tester.scrollUntilVisible(
-      find.byTooltip('Tạm dừng'),
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.byTooltip('Tạm dừng'));
-    await tester.pump();
-    expect(find.text('Đang tạm dừng'), findsOneWidget);
-    expect(
-      tester
-          .widget<FilledButton>(
-            find.ancestor(
-              of: find.text('Đang tạm dừng'),
-              matching: find.byType(FilledButton),
-            ),
-          )
-          .onPressed,
-      isNull,
-    );
   });
 }

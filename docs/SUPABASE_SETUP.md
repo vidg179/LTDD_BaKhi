@@ -9,6 +9,22 @@ Mở **SQL Editor**, dán toàn bộ `supabase/check_migrations.sql` và bấm R
 - 001–003 bị ❌ nghĩa là project chưa được tạo theo hướng dẫn bên dưới. Không chạy lại 001 trên project đã có dữ liệu, vì file này tạo bảng mới.
 
 
+## Xác nhận bằng mã OTP qua Gmail
+
+App xác nhận đăng ký và đặt lại mật khẩu bằng **mã gồm các chữ số** trong email (nhập ngay trong app), không cần mở link. Cần cấu hình 3 chỗ:
+
+1. **Gmail App Password:** bật xác minh 2 bước cho tài khoản Gmail dùng để gửi, rồi tạo App Password tại https://myaccount.google.com/apppasswords (16 ký tự).
+2. **Authentication → Emails → SMTP Settings:** bật Custom SMTP. Host `smtp.gmail.com`, Port `587`, Username = địa chỉ Gmail, Password = App Password, Sender email = cùng địa chỉ Gmail, Sender name `Bá Khí Game Hub`. Sau đó vào **Authentication → Rate Limits** tăng “Rate limit for sending emails” (ví dụ 30/giờ). Gmail tự giới hạn khoảng 500 email/ngày.
+3. **Authentication → Emails → Templates:** trong mẫu **Confirm signup** và **Reset Password**, thay link bằng mã, ví dụ:
+
+```html
+<h2>Mã xác nhận Bá Khí Game Hub</h2>
+<p>Mã của bạn là: <strong style="font-size:24px">{{ .Token }}</strong></p>
+<p>Mã hết hạn sau 1 giờ. Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>
+```
+
+Confirm email vẫn để **bật**. App chấp nhận mã 6–10 chữ số (theo cài đặt “Email OTP Length”).
+
 ## 1. Tạo database
 
 Tạo project Supabase mới. Mở **SQL Editor**, sao chép toàn bộ `supabase/migrations/001_game_app.sql`, chạy một lần. Script tạo:

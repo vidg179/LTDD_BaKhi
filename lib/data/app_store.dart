@@ -283,6 +283,29 @@ class AppStore extends ChangeNotifier {
 
   /// Supabase sends the email only for registered addresses but answers the
   /// same either way, so the caller must not claim the account exists.
+  /// Confirms a new account with the code from the sign-up email.
+  Future<void> verifySignupCode(String email, String code) async {
+    await client!.auth
+        .verifyOTP(
+          email: email.trim(),
+          token: code.trim(),
+          type: OtpType.signup,
+        )
+        .timeout(networkTimeout);
+  }
+
+  /// Checks the code from the reset email. Success signs the user in and
+  /// raises passwordRecovery, so the new-password screen opens.
+  Future<void> verifyRecoveryCode(String email, String code) async {
+    await client!.auth
+        .verifyOTP(
+          email: email.trim(),
+          token: code.trim(),
+          type: OtpType.recovery,
+        )
+        .timeout(networkTimeout);
+  }
+
   Future<void> requestPasswordReset(String email) async {
     await client!.auth
         .resetPasswordForEmail(
@@ -483,9 +506,12 @@ String friendlyError(Object error) {
       'email_not_confirmed' => 'Hãy xác nhận email trước khi đăng nhập.',
       'user_already_exists' => 'Email này đã được sử dụng. Hãy đăng nhập, hoặc bấm “Quên mật khẩu?” nếu không nhớ mật khẩu.',
       'same_password' => 'Mật khẩu mới phải khác mật khẩu cũ.',
-      'over_email_send_rate_limit' ||
       'over_request_rate_limit' => 'Bạn thao tác quá nhanh. Hãy thử lại sau.',
       'weak_password' => 'Mật khẩu chưa đủ mạnh. Hãy chọn mật khẩu khác.',
+      'otp_expired' =>
+        'Mã đã hết hạn hoặc không đúng. Hãy kiểm tra lại hoặc gửi mã mới.',
+      'over_email_send_rate_limit' =>
+        'Đã gửi quá nhiều email trong thời gian ngắn. Hãy thử lại sau ít phút.',
       'email_address_invalid' || 'validation_failed' => 'Email chưa hợp lệ.',
       _ => 'Không thực hiện được yêu cầu tài khoản. Kiểm tra thông tin và kết nối rồi thử lại.',
     };

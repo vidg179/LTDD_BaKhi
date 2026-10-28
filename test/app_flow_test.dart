@@ -29,6 +29,14 @@ class FakeAuthStore extends AppStore {
     resendCalls++;
   }
 
+  final verified = <String>[];
+  @override
+  Future<void> verifySignupCode(String email, String code) async =>
+      verified.add('signup:$email:$code');
+  @override
+  Future<void> verifyRecoveryCode(String email, String code) async =>
+      verified.add('recovery:$email:$code');
+
   final resetEmails = <String>[];
   @override
   Future<void> requestPasswordReset(String email) async =>
@@ -124,6 +132,9 @@ void main() {
   testWidgets(
     'Registration validates repeated password and can resend confirmation',
     (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final authStore = FakeAuthStore(await SharedPreferences.getInstance());
       addTearDown(authStore.dispose);
       await tester.pumpWidget(
@@ -161,11 +172,18 @@ void main() {
       await tester.tap(find.text('Tạo tài khoản'));
       await tester.pumpAndSettle();
       expect(authStore.signUpCalls, 1);
-      expect(find.text('Gửi lại email xác nhận'), findsOneWidget);
-      await tester.tap(find.text('Gửi lại email xác nhận'));
+      expect(find.text('Gửi lại mã xác nhận'), findsOneWidget);
+      await tester.tap(find.text('Gửi lại mã xác nhận'));
       await tester.pumpAndSettle();
       expect(authStore.resendCalls, 1);
       expect(find.textContaining('Đã gửi lại email xác nhận'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Mã xác nhận tài khoản'),
+        '654321',
+      );
+      await tester.tap(find.text('Xác nhận mã'));
+      await tester.pumpAndSettle();
+      expect(authStore.verified, ['signup:player@example.com:654321']);
     },
   );
 
@@ -269,6 +287,9 @@ void main() {
   testWidgets('Forgot password needs an email and never confirms the account', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final authStore = FakeAuthStore(await SharedPreferences.getInstance());
     addTearDown(authStore.dispose);
     await tester.pumpWidget(
@@ -289,6 +310,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(authStore.resetEmails, ['player@example.com']);
     expect(find.textContaining('Nếu email này đã đăng ký'), findsOneWidget);
+
+    // The code from the reset email is entered in the form.
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Mã đặt lại mật khẩu'),
+      '12',
+    );
+    await tester.tap(find.text('Xác nhận mã'));
+    await tester.pump();
+    expect(find.textContaining('Nhập mã gồm các chữ số'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Mã đặt lại mật khẩu'),
+      ' 123456 ',
+    );
+    await tester.tap(find.text('Xác nhận mã'));
+    await tester.pumpAndSettle();
+    expect(authStore.verified, ['recovery:player@example.com:123456']);
   });
 
   testWidgets('A reset link leads to the new password page first', (

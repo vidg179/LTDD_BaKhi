@@ -76,7 +76,6 @@ class _RubikPageState extends State<RubikPage> {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => SolutionPage(
-            store: widget.store,
             definition: definition,
             moves: moves,
             centers: _faces.map((f) => f![4]).toList(),

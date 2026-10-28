@@ -10,7 +10,7 @@
 | Sudoku | Dễ/vừa/khó chấm theo kỹ thuật giải (single / khóa ứng viên, cặp, bộ ba / nâng cao), đề duy nhất một lời giải, ghi chú, kiểm tra lỗi, đồng hồ, tính điểm |
 | Xếp hình | Puzzle ảnh trượt ô: dễ 3×3, vừa 4×4, khó 5×5; 3 ảnh có sẵn hoặc chọn ảnh từ thư viện; xem ảnh mẫu và kiểm tra hoàn thành |
 | Caro | Bàn 15×15; máy dễ đi ngẫu nhiên gần quân, vừa đánh giá thế cờ, khó tìm kiếm negamax alpha-beta 4 lớp (thắng ~71% trước mức vừa); luật chặn hai đầu; kiểm tra thắng/thua/hòa |
-| Rubik | Quét 6 mặt 3×3, sửa màu, bộ giải offline, mô hình 3D xoay từng lớp theo lời giải, thời gian và lỗi tự ghi nhận |
+| Rubik | Quét 6 mặt 3×3, sửa màu, bộ giải offline, mô hình 3D xoay từng lớp theo lời giải. Là công cụ gợi ý giải nên không tính giờ, không tính điểm, không có bảng xếp hạng |
 | Điểm | Lưu lịch sử trên máy, đồng bộ kết quả của tài khoản khi có mạng, gửi lại không trùng bản ghi |
 | Xếp hạng | Kỷ lục cá nhân; online lấy kết quả tốt nhất mỗi người theo game và độ khó, chỉ tính ván được server ghi giờ và qua kiểm tra hợp lý; bằng điểm, giây và lỗi thì ai đạt trước xếp trên; ngoài top 50 vẫn thấy “Hạng của bạn” |
 | Thách đấu | Mời/chấp nhận/từ chối thách đấu, người gửi hủy được lời mời còn chờ; hỗ trợ Sudoku và Caro online, xác định người thắng/hòa, đầu hàng, lời mời hết hạn sau 24 giờ, hạn hoàn thành 24 giờ, Caro online 60 giây mỗi lượt, tái đấu Caro |
@@ -78,14 +78,14 @@ APK build không có tham số cấu hình chỉ chạy chế độ khách. Sau 
 
 `điểm = điểm_gốc × hệ_số × T / (T + giây)`, sau đó mỗi lỗi trừ 5% số điểm còn lại (× 19/20, làm tròn xuống); thắng tối thiểu 1 điểm, thua/hòa 0. T là thời gian chuẩn: giải đúng bằng T được một nửa điểm tối đa, chậm 3T được một phần tư. Công thức chỉ dùng số nguyên, giống hệt nhau ở `calculateScore` (app) và `game_score` (database, migration 008).
 
-- Thời gian chuẩn T (Dễ/Vừa/Khó): Sudoku 600/900/1500 giây; Xếp hình 60/240/600 giây; Caro 120/240/360 giây; Rubik có hướng dẫn 180 giây.
+- Thời gian chuẩn T (Dễ/Vừa/Khó): Sudoku 600/900/1500 giây; Xếp hình 60/240/600 giây; Caro 120/240/360 giây.
 
-- Điểm gốc: Sudoku 2000, Xếp hình 1500, Caro/Rubik 1000.
-- Hệ số Dễ/Vừa/Khó: 1/2/3. Rubik có hướng dẫn chỉ dùng hệ số 1.
+- Điểm gốc: Sudoku 2000, Xếp hình 1500, Caro 1000.
+- Hệ số Dễ/Vừa/Khó: 1/2/3.
 - Sudoku: nhập số trùng với số đã có trong cùng hàng, cột hoặc khối 3×3 tính 1 lỗi và ô bị tô đỏ; mỗi số chỉ tính một lần cho mỗi ô, kể cả xóa rồi nhập lại; ghi chú không tính lỗi. App không so với đáp án nên không làm lộ đáp án; số sai nhưng chưa trùng chỉ lộ ra khi gây trùng về sau hoặc khi bảng đầy mà chưa đúng.
 - Xếp hình: chạm ô không kề khoảng trống tính 1 lỗi. Dễ dùng 3×3, Vừa dùng 4×4, Khó dùng 5×5.
 - Caro dùng luật Việt Nam: ít nhất 5 quân liên tiếp là thắng, trừ khi bị quân đối phương chặn cả hai đầu; mép bàn không tính là chặn. Áp dụng cho cả Caro với máy và Caro online (server kiểm tra). Không tính lỗi chiến thuật. Thua/hòa được 0 điểm.
-- Rubik có hướng dẫn: tự ghi nhận lỗi; xác nhận từng bước trên khối thật. Nút “Đã xoay xong” mở sau ít nhất 2 giây mỗi bước, đo trên đồng hồ ván (không tính lúc tạm dừng), khớp ngưỡng 2 giây/bước của server. Khi tạm dừng, nút ghi “Đang tạm dừng”. Khối đã giải sẵn không được điểm.
+- Rubik: là phần hướng dẫn giải khối thật (yêu cầu “gợi ý giải”), không phải thi đấu, nên không có đồng hồ, không tính lỗi, không tính điểm. Người dùng bấm “Đã xoay xong” theo tốc độ của mình.
 - Ván đơn dừng đồng hồ khi tạm dừng hoặc app xuống nền. Ván chưa hoàn thành không tính điểm; rời ván đơn sẽ mất tiến độ.
 - Lời mời chưa trả lời hết hạn sau 24 giờ. Sau khi chấp nhận có 24 giờ để thi đấu: Sudoku ai đã nộp thì thắng, chưa ai nộp thì hòa; Caro ai không vào trận thì thua. Caro online có 60 giây mỗi lượt (bắt đầu tính khi cả hai đã vào trận), hết giờ là thua. Hai bên đều có thể đầu hàng (Sudoku: trước khi nộp). Server chốt kết quả quá hạn mỗi khi người chơi thao tác; app của người đang chờ tự yêu cầu chốt khi đồng hồ lượt về 0.
 - Thách đấu tính giờ liên tục trên server. Tiến độ Sudoku thách đấu và số lỗi được lưu trên cùng thiết bị để tiếp tục; ghi chú chưa được lưu. Đổi thiết bị không mang theo bản nháp nhưng đồng hồ server vẫn chạy.

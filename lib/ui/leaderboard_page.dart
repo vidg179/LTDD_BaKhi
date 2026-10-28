@@ -80,7 +80,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           children: [
             DropdownButton<GameKind>(
               value: _game,
+              // Rubik is a solving guide, not a scored game.
               items: GameKind.values
+                  .where((g) => g != GameKind.rubik)
                   .map(
                     (g) => DropdownMenuItem(
                       value: g,
@@ -90,27 +92,19 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   .toList(),
               onChanged: (v) {
                 _game = v!;
-                if (_game == GameKind.rubik) _difficulty = Difficulty.easy;
                 _reload();
               },
             ),
             DropdownButton<Difficulty>(
               value: _difficulty,
-              items:
-                  (_game == GameKind.rubik
-                          ? [Difficulty.easy]
-                          : Difficulty.values)
-                      .map(
-                        (d) => DropdownMenuItem(
-                          value: d,
-                          child: Text(
-                            _game == GameKind.rubik
-                                ? 'Có hướng dẫn'
-                                : difficultyLabels[d.index],
-                          ),
-                        ),
-                      )
-                      .toList(),
+              items: Difficulty.values
+                  .map(
+                    (d) => DropdownMenuItem(
+                      value: d,
+                      child: Text(difficultyLabels[d.index]),
+                    ),
+                  )
+                  .toList(),
               onChanged: (v) {
                 _difficulty = v!;
                 _reload();
