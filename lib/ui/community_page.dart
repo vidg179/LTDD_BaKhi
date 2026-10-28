@@ -564,7 +564,16 @@ class _ChatPageState extends State<ChatPage> {
   bool _sending = false;
   String? _error, _pendingId;
   @override
+  void initState() {
+    super.initState();
+    widget.store.openChatPeer = widget.peer['id'] as String?;
+  }
+
+  @override
   void dispose() {
+    if (widget.store.openChatPeer == widget.peer['id']) {
+      widget.store.openChatPeer = null;
+    }
     _input.dispose();
     super.dispose();
   }

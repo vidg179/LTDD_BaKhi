@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'data/app_store.dart';
+import 'data/chat_notifier.dart';
 import 'ui/app_theme.dart';
 import 'ui/app_shell.dart';
 
@@ -46,6 +48,8 @@ Future<void> main() async {
   );
   runApp(MyApp(store: store));
   store.syncResults();
+  // Notifications are a convenience: a failure must not stop the app.
+  unawaited(ChatNotifier(store).start().catchError((Object _) {}));
 }
 
 class MyApp extends StatelessWidget {

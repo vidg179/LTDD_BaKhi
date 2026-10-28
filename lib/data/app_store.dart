@@ -78,6 +78,9 @@ class AppStore extends ChangeNotifier {
 
   /// Problem with an email link, shown on the sign-in form.
   String? authNotice;
+
+  /// The player whose chat is on screen; their messages need no notification.
+  String? openChatPeer;
   bool _syncAgain = false;
   String? _cachedOwner;
   List<GameResult>? _cachedResults;
