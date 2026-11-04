@@ -1,6 +1,6 @@
 # Báo cáo audit & tối ưu — 2026-10-17
 
-Phạm vi: toàn bộ `lib/`, `test/`, `android/`, `ios/Runner/Info.plist`, `pubspec.yaml`, `supabase/migrations/`.
+Phạm vi: toàn bộ `lib/`, `test/`, `android/`, `ios/Runner/Info.plist`, `pubspec.yaml`, `backend/supabase/migrations/`.
 Môi trường: Flutter 3.47.4 stable, Dart 3.13.3, Android SDK 36, Windows 11. Thư mục dự án **không phải Git repo**; bản sao trước khi sửa được giữ ngoài dự án (thư mục tạm của phiên làm việc).
 
 ## Hiện trạng
@@ -57,7 +57,7 @@ Flutter app (Android/iOS) với Supabase (Auth, Postgres + RLS, Realtime). Kiế
 | `dart format lib test` | 3 file được định dạng lại. |
 | `flutter analyze` | Không có vấn đề (trước và sau). |
 | `flutter test` | Trước: 30/30. Sau: **36/36**. 6 test mới đều fail khi chạy trên code gốc. |
-| `npm test --prefix tool/backend_test` | Migration và 32 assertion pass (PGlite). |
+| `npm test --prefix backend/supabase/tests` | Migration và 32 assertion pass (PGlite). |
 | `flutter build apk --release` | Thành công. |
 | `flutter build apk --release --split-per-abi` | Thành công: armeabi-v7a 29.7 MB, arm64-v8a 31.8 MB, x86_64 33.3 MB. |
 

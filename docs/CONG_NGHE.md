@@ -20,7 +20,7 @@ Tài liệu ôn tập cho buổi bảo vệ đồ án: dùng công nghệ gì, �
 | **Hàm SQL / RPC** (`plpgsql`) | Luật chạy trên máy chủ: kiểm tra nước đi Caro, đáp án Sudoku, tính điểm, hết giờ, đầu hàng. App chỉ gửi yêu cầu, máy chủ quyết định |
 | **Supabase Realtime** | Gửi dữ liệu tức thì giữa hai máy: tin nhắn, lời mời, nước đi Caro online, thông báo |
 | **SMTP Gmail** | Gửi email chứa mã xác nhận |
-| **Migration** (`supabase/migrations/001`–`010`) | File SQL tạo và cập nhật cấu trúc database theo từng bước |
+| **Migration** (`backend/supabase/migrations/001`–`010`) | File SQL tạo và cập nhật cấu trúc database theo từng bước |
 
 ## 3. Thư viện Flutter
 

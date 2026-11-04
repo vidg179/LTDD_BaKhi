@@ -19,32 +19,32 @@ await db.exec(`
   alter default privileges in schema public grant all on tables to anon, authenticated;
   alter default privileges in schema public grant execute on functions to anon, authenticated;
 `);
-const migration = await readFile(new URL('../../supabase/migrations/001_game_app.sql', import.meta.url), 'utf8');
+const migration = await readFile(new URL('../migrations/001_game_app.sql', import.meta.url), 'utf8');
 await db.exec(migration);
-const caroMigration = await readFile(new URL('../../supabase/migrations/002_caro_challenges.sql', import.meta.url), 'utf8');
+const caroMigration = await readFile(new URL('../migrations/002_caro_challenges.sql', import.meta.url), 'utf8');
 await db.exec(caroMigration);
-const revokeAnon = await readFile(new URL('../../supabase/migrations/003_revoke_anon.sql', import.meta.url), 'utf8');
+const revokeAnon = await readFile(new URL('../migrations/003_revoke_anon.sql', import.meta.url), 'utf8');
 await db.exec(revokeAnon);
 await db.exec(revokeAnon); // idempotent
-const caroRule = await readFile(new URL('../../supabase/migrations/004_caro_vietnam_rule.sql', import.meta.url), 'utf8');
+const caroRule = await readFile(new URL('../migrations/004_caro_vietnam_rule.sql', import.meta.url), 'utf8');
 await db.exec(caroRule);
 await db.exec(caroRule); // idempotent
-const verifiedResults = await readFile(new URL('../../supabase/migrations/005_verified_results.sql', import.meta.url), 'utf8');
+const verifiedResults = await readFile(new URL('../migrations/005_verified_results.sql', import.meta.url), 'utf8');
 await db.exec(verifiedResults);
 await db.exec(verifiedResults); // idempotent
-const deadlines = await readFile(new URL('../../supabase/migrations/006_challenge_deadlines.sql', import.meta.url), 'utf8');
+const deadlines = await readFile(new URL('../migrations/006_challenge_deadlines.sql', import.meta.url), 'utf8');
 await db.exec(deadlines);
 await db.exec(deadlines); // idempotent
-const graded = await readFile(new URL('../../supabase/migrations/007_graded_sudoku.sql', import.meta.url), 'utf8');
+const graded = await readFile(new URL('../migrations/007_graded_sudoku.sql', import.meta.url), 'utf8');
 await db.exec(graded);
 await db.exec(graded); // idempotent
-const scoring = await readFile(new URL('../../supabase/migrations/008_score_formula.sql', import.meta.url), 'utf8');
+const scoring = await readFile(new URL('../migrations/008_score_formula.sql', import.meta.url), 'utf8');
 await db.exec(scoring);
 await db.exec(scoring); // idempotent
-const cancelling = await readFile(new URL('../../supabase/migrations/009_cancel_challenge.sql', import.meta.url), 'utf8');
+const cancelling = await readFile(new URL('../migrations/009_cancel_challenge.sql', import.meta.url), 'utf8');
 await db.exec(cancelling);
 await db.exec(cancelling); // idempotent
-const ranking = await readFile(new URL('../../supabase/migrations/010_leaderboard_rank.sql', import.meta.url), 'utf8');
+const ranking = await readFile(new URL('../migrations/010_leaderboard_rank.sql', import.meta.url), 'utf8');
 await db.exec(ranking);
 await db.exec(ranking); // idempotent
 const a = '10000000-0000-4000-8000-000000000001';

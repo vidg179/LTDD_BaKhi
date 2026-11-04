@@ -29,7 +29,7 @@ API không giữ dữ liệu riêng: mỗi endpoint gọi đúng hàm SQL hoặc
 ## Chạy trên máy
 
 ```bash
-cd server/BaKhi.Api
+cd backend/BaKhi.Api
 Supabase__Url=https://<project>.supabase.co Supabase__AnonKey=<anon key> dotnet run
 ```
 
@@ -38,7 +38,7 @@ Supabase__Url=https://<project>.supabase.co Supabase__AnonKey=<anon key> dotnet 
 VPS chỉ ~1 GB RAM nên build trên máy, chép bản đã build lên:
 
 ```bash
-cd server
+cd backend
 dotnet publish BaKhi.Api -c Release -o deploy/publish
 scp -r deploy/Dockerfile deploy/docker-compose.yml deploy/publish root@42.96.2.9:/opt/bakhi-game-api/
 ssh root@42.96.2.9 "cd /opt/bakhi-game-api && docker compose up -d --build"

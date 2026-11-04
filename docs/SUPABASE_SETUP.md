@@ -2,10 +2,10 @@
 
 ## Đã thiết lập từ trước? Kiểm tra migration còn thiếu
 
-Mở **SQL Editor**, dán toàn bộ `supabase/check_migrations.sql` và bấm Run. File này chỉ đọc, không thay đổi gì. Kết quả có 10 dòng, mỗi migration một dòng, ghi “✅ đã chạy” hoặc “❌ CHƯA CHẠY”.
+Mở **SQL Editor**, dán toàn bộ `backend/supabase/check_migrations.sql` và bấm Run. File này chỉ đọc, không thay đổi gì. Kết quả có 10 dòng, mỗi migration một dòng, ghi “✅ đã chạy” hoặc “❌ CHƯA CHẠY”.
 
 - Tất cả ✅: không cần làm gì.
-- Có ❌: chạy lần lượt các file trong `supabase/migrations/` **từ file ❌ đầu tiên đến hết 010**, kể cả những file đã ✅ nằm sau nó, rồi chạy lại file kiểm tra để chắc chắn tất cả đã ✅. Các file từ 004 đến 010 chạy lại nhiều lần đều an toàn, nhưng chạy riêng một file cũ sẽ ghi đè hàm của file mới hơn. Câu kiểm tra phát hiện được trường hợp đó và cũng báo ❌.
+- Có ❌: chạy lần lượt các file trong `backend/supabase/migrations/` **từ file ❌ đầu tiên đến hết 010**, kể cả những file đã ✅ nằm sau nó, rồi chạy lại file kiểm tra để chắc chắn tất cả đã ✅. Các file từ 004 đến 010 chạy lại nhiều lần đều an toàn, nhưng chạy riêng một file cũ sẽ ghi đè hàm của file mới hơn. Câu kiểm tra phát hiện được trường hợp đó và cũng báo ❌.
 - 001–003 bị ❌ nghĩa là project chưa được tạo theo hướng dẫn bên dưới. Không chạy lại 001 trên project đã có dữ liệu, vì file này tạo bảng mới.
 
 
@@ -27,7 +27,7 @@ Confirm email vẫn để **bật**. App chấp nhận mã 6–10 chữ số (th
 
 ## 1. Tạo database
 
-Tạo project Supabase mới. Mở **SQL Editor**, sao chép toàn bộ `supabase/migrations/001_game_app.sql`, chạy một lần. Script tạo:
+Tạo project Supabase mới. Mở **SQL Editor**, sao chép toàn bộ `backend/supabase/migrations/001_game_app.sql`, chạy một lần. Script tạo:
 
 - `profiles`: tên hiển thị (email nằm ở Supabase Auth, không công khai cho người chơi khác).
 - `game_results` và view `leaderboard`: kết quả chơi đơn, điểm tính ở database.
@@ -36,23 +36,23 @@ Tạo project Supabase mới. Mở **SQL Editor**, sao chép toàn bộ `supabas
 - RPC tạo/chấp nhận/bắt đầu/nộp thách đấu. Client không được sửa trực tiếp thời gian hoặc kết quả thách đấu.
 - Realtime publication cho `messages` và `challenges`.
 
-Sau đó sao chép toàn bộ `supabase/migrations/002_caro_challenges.sql` sang SQL Editor và chạy một lần. Migration này thêm loại trò chơi vào lời mời, bàn Caro trực tuyến và kiểm tra lượt đi/thắng thua ở server.
+Sau đó sao chép toàn bộ `backend/supabase/migrations/002_caro_challenges.sql` sang SQL Editor và chạy một lần. Migration này thêm loại trò chơi vào lời mời, bàn Caro trực tuyến và kiểm tra lượt đi/thắng thua ở server.
 
-Cuối cùng chạy `supabase/migrations/003_revoke_anon.sql`. Supabase mặc định cấp quyền cho người chưa đăng nhập (`anon`) trên hàm và bảng mới; migration này rút quyền đó khỏi các hàm thách đấu và bảng `caro_matches`. Có thể chạy lại nhiều lần.
+Cuối cùng chạy `backend/supabase/migrations/003_revoke_anon.sql`. Supabase mặc định cấp quyền cho người chưa đăng nhập (`anon`) trên hàm và bảng mới; migration này rút quyền đó khỏi các hàm thách đấu và bảng `caro_matches`. Có thể chạy lại nhiều lần.
 
-Sau đó chạy `supabase/migrations/004_caro_vietnam_rule.sql`. Migration này thay hàm `play_caro_move` để Caro online dùng luật Việt Nam: 5 quân bị quân đối phương chặn cả hai đầu không được tính thắng (mép bàn không tính là chặn). Có thể chạy lại nhiều lần; quyền đã cấp/rút ở 002–003 được giữ nguyên.
+Sau đó chạy `backend/supabase/migrations/004_caro_vietnam_rule.sql`. Migration này thay hàm `play_caro_move` để Caro online dùng luật Việt Nam: 5 quân bị quân đối phương chặn cả hai đầu không được tính thắng (mép bàn không tính là chặn). Có thể chạy lại nhiều lần; quyền đã cấp/rút ở 002–003 được giữ nguyên.
 
-Cuối cùng chạy `supabase/migrations/005_verified_results.sql`. Migration này rút quyền ghi trực tiếp vào `game_results`; app gửi kết quả qua RPC `submit_game_result`, và chỉ kết quả có phiên do server mở (`start_game_session`) cùng thời gian/số nước hợp lý mới lên bảng xếp hạng. **Các kết quả có sẵn trước migration không xác minh được nên sẽ không còn trên bảng xếp hạng** (vẫn nằm trong bảng `game_results`). Có thể chạy lại nhiều lần.
+Cuối cùng chạy `backend/supabase/migrations/005_verified_results.sql`. Migration này rút quyền ghi trực tiếp vào `game_results`; app gửi kết quả qua RPC `submit_game_result`, và chỉ kết quả có phiên do server mở (`start_game_session`) cùng thời gian/số nước hợp lý mới lên bảng xếp hạng. **Các kết quả có sẵn trước migration không xác minh được nên sẽ không còn trên bảng xếp hạng** (vẫn nằm trong bảng `game_results`). Có thể chạy lại nhiều lần.
 
-Sau cùng chạy `supabase/migrations/006_challenge_deadlines.sql`. Migration này thêm hạn trả lời lời mời (24 giờ), hạn thi đấu sau khi chấp nhận (24 giờ), đồng hồ 60 giây mỗi lượt cho Caro online và RPC `resign_challenge`, `check_challenge_timeout`. Không cần cron: kết quả quá hạn được chốt khi người chơi gọi bất kỳ hàm thách đấu nào. Các thách đấu đang diễn ra lúc chạy migration được cấp hạn mới 24 giờ. Có thể chạy lại nhiều lần.
+Sau cùng chạy `backend/supabase/migrations/006_challenge_deadlines.sql`. Migration này thêm hạn trả lời lời mời (24 giờ), hạn thi đấu sau khi chấp nhận (24 giờ), đồng hồ 60 giây mỗi lượt cho Caro online và RPC `resign_challenge`, `check_challenge_timeout`. Không cần cron: kết quả quá hạn được chốt khi người chơi gọi bất kỳ hàm thách đấu nào. Các thách đấu đang diễn ra lúc chạy migration được cấp hạn mới 24 giờ. Có thể chạy lại nhiều lần.
 
-Cuối cùng chạy `supabase/migrations/007_graded_sudoku.sql`. Migration này thay 3 đề Sudoku thách đấu cũ (cả ba thực ra chỉ ở mức Dễ) bằng 18 đề, 6 đề mỗi mức, đã chấm bằng cùng thang với chơi đơn; mỗi lời mời chọn ngẫu nhiên một đề và hoán vị chữ số. Migration cũng cập nhật số nước tối thiểu của Sudoku trong kiểm tra xếp hạng cho khớp bộ sinh đề mới. Thách đấu đã tạo trước đó giữ nguyên đề cũ. Có thể chạy lại nhiều lần.
+Cuối cùng chạy `backend/supabase/migrations/007_graded_sudoku.sql`. Migration này thay 3 đề Sudoku thách đấu cũ (cả ba thực ra chỉ ở mức Dễ) bằng 18 đề, 6 đề mỗi mức, đã chấm bằng cùng thang với chơi đơn; mỗi lời mời chọn ngẫu nhiên một đề và hoán vị chữ số. Migration cũng cập nhật số nước tối thiểu của Sudoku trong kiểm tra xếp hạng cho khớp bộ sinh đề mới. Thách đấu đã tạo trước đó giữ nguyên đề cũ. Có thể chạy lại nhiều lần.
 
-Sau cùng chạy `supabase/migrations/008_score_formula.sql`. Migration này thay hàm `game_score` bằng công thức mới (thời gian chuẩn theo từng game/mức, mỗi lỗi −5%, không còn sàn 100 điểm) và tính lại điểm của mọi kết quả đã lưu, nên bảng xếp hạng đổi ngay. Điểm của các lượt thách đấu đã kết thúc giữ nguyên, để không làm lệch người thắng đã công bố. Có thể chạy lại nhiều lần.
+Sau cùng chạy `backend/supabase/migrations/008_score_formula.sql`. Migration này thay hàm `game_score` bằng công thức mới (thời gian chuẩn theo từng game/mức, mỗi lỗi −5%, không còn sàn 100 điểm) và tính lại điểm của mọi kết quả đã lưu, nên bảng xếp hạng đổi ngay. Điểm của các lượt thách đấu đã kết thúc giữ nguyên, để không làm lệch người thắng đã công bố. Có thể chạy lại nhiều lần.
 
-Cuối cùng chạy `supabase/migrations/009_cancel_challenge.sql`. Migration này thêm trạng thái `cancelled` và RPC `cancel_challenge`: người gửi hủy được lời mời khi còn chờ; lời mời đã hủy vẫn hiện ở cả hai máy (“Người gửi đã hủy”) và không chấp nhận được nữa. Có thể chạy lại nhiều lần.
+Cuối cùng chạy `backend/supabase/migrations/009_cancel_challenge.sql`. Migration này thêm trạng thái `cancelled` và RPC `cancel_challenge`: người gửi hủy được lời mời khi còn chờ; lời mời đã hủy vẫn hiện ở cả hai máy (“Người gửi đã hủy”) và không chấp nhận được nữa. Có thể chạy lại nhiều lần.
 
-Sau cùng chạy `supabase/migrations/010_leaderboard_rank.sql`. Migration này thêm cột `achieved_at` vào view `leaderboard` (khi bằng điểm, giây và lỗi thì ai đạt trước xếp trên) và hàm `my_leaderboard_rank` để người chơi ngoài top 50 thấy hạng của mình. Có thể chạy lại nhiều lần.
+Sau cùng chạy `backend/supabase/migrations/010_leaderboard_rank.sql`. Migration này thêm cột `achieved_at` vào view `leaderboard` (khi bằng điểm, giây và lỗi thì ai đạt trước xếp trên) và hàm `my_leaderboard_rank` để người chơi ngoài top 50 thấy hạng của mình. Có thể chạy lại nhiều lần.
 
 Script có transaction và dành cho project mới; không chạy lặp sau khi đã tạo các bảng. Nếu trước đó đã tạo tài khoản, thêm profile tương ứng trong SQL Editor:
 
@@ -80,7 +80,7 @@ Android manifest và iOS Info.plist đã khai báo URL scheme này; Supabase SDK
 
 ## 3. Cấu hình Flutter
 
-Copy `config/supabase.example.json` thành `config/supabase.json`:
+Copy `frontend/config/supabase.example.json` thành `frontend/config/supabase.json`:
 
 ```json
 {
@@ -115,8 +115,8 @@ Kết quả thách đấu không đưa vào bảng xếp hạng chơi đơn; xem
 ## 5. Kiểm thử database không cần project online
 
 ```sh
-npm ci --prefix tool/backend_test
-npm test --prefix tool/backend_test
+npm ci --prefix backend/supabase/tests
+npm test --prefix backend/supabase/tests
 ```
 
 PGlite chạy PostgreSQL trong bộ nhớ, dựng fixture `auth.uid()` và áp dụng **chính migration của ứng dụng**. Không tạo project cloud hoặc gửi email/tin nhắn thật. Bài test xác minh chính sách đọc/ghi, tính điểm, cùng đề, đồng hồ không reset, đáp án hợp lệ, kết quả idempotent và quyền của người ngoài.

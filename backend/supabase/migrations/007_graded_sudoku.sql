@@ -1,9 +1,9 @@
 -- Run after 006_challenge_deadlines.sql. Safe to run again.
 -- Sudoku challenges use the same difficulty scale as solo play: every
 -- template below was generated and graded by gradeSudoku in
--- lib/games/sudoku_engine.dart (easy = singles only; medium = also locked
+-- frontend/lib/games/sudoku_engine.dart (easy = singles only; medium = also locked
 -- candidates, naked pairs/triples, hidden pairs; hard = those are not
--- enough). test/game_engines_test.dart re-grades this file.
+-- enough). frontend/test/game_engines_test.dart re-grades this file.
 -- Each invite picks one template of its level at random and relabels the
 -- digits with a random permutation, which keeps the solution unique and the
 -- grade unchanged.
