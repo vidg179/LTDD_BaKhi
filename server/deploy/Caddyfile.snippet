@@ -1,0 +1,5 @@
+
+game.{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy bakhi-game-api:8080
+}

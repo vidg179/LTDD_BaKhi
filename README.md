@@ -1,5 +1,8 @@
 # Bá Khí — Game Hub
 
+- **Frontend (Flutter):** thư mục gốc của repo này (`lib/`, `test/`).
+- **Backend:** [`server/`](server/) — ASP.NET Core Web API có Swagger, đang chạy tại https://game.42-96-2-9.sslip.io/swagger — cùng database Supabase trong [`supabase/migrations/`](supabase/migrations/).
+
 Ứng dụng Flutter cho học phần Lập trình trên thiết bị di động.
 
 ## Chức năng
@@ -128,6 +131,7 @@ lib/
 assets/images/           # Ảnh puzzle JPEG được đóng gói
 design/puzzle_source/    # Ảnh PNG gốc (không đóng gói)
 supabase/migrations/     # Schema, RLS, RPC và cấu hình Realtime
+server/                  # BaKhi_API: ASP.NET Core Web API + Swagger (xem server/README.md)
 config/                  # Mẫu cấu hình build
  test/                   # Unit/widget tests
  tool/backend_test/      # Kiểm tra SQL trong PostgreSQL nhúng

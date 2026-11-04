@@ -1,0 +1,4 @@
+bin/
+obj/
+deploy/publish/
+deploy/.env

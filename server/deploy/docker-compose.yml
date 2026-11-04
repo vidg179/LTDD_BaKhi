@@ -1,0 +1,17 @@
+# BaKhi game API on the VPS, at /opt/bakhi-game-api.
+# HTTPS comes from the Caddy container that already runs on the server
+# (project /opt/bakhi-api): it joins that project's network and Caddy
+# proxies game.<DOMAIN> here (see Caddyfile.snippet).
+services:
+  game-api:
+    build: .
+    container_name: bakhi-game-api
+    env_file: .env
+    restart: unless-stopped
+    networks:
+      - edge
+
+networks:
+  edge:
+    name: bakhi-api_default
+    external: true
