@@ -17,7 +17,7 @@ public record LoginRequest(
 public record VerifyOtpRequest(
     [property: Required, DefaultValue("player@example.com")] string Email,
     [property: Required, Description("Mã gồm các chữ số trong email"), DefaultValue("123456")] string Code,
-    [property: Description("signup = xác nhận đăng ký, recovery = đặt lại mật khẩu"), DefaultValue("signup")] string Type = "signup");
+    [property: Description("Luôn là recovery (đặt lại mật khẩu)"), DefaultValue("recovery")] string Type = "recovery");
 
 public record EmailRequest([property: Required, DefaultValue("player@example.com")] string Email);
 

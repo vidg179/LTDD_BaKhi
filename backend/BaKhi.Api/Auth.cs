@@ -31,9 +31,9 @@ public sealed class JwtSettings
 }
 
 /// <summary>
-/// Accounts: sign-up confirmed by a 6-digit code sent by email, sign-in with
-/// a BCrypt-checked password, a 1-hour JWT access token plus a 30-day refresh
-/// token, and password reset by emailed code.
+/// Accounts: sign-up that signs the player in at once, sign-in with a
+/// BCrypt-checked password, a 1-hour JWT access token plus a 30-day refresh
+/// token, and password reset by a 6-digit code sent by email.
 /// </summary>
 public sealed partial class AuthService(NpgsqlDataSource db, IConfiguration config, EmailSender email)
 {
@@ -63,45 +63,39 @@ public sealed partial class AuthService(NpgsqlDataSource db, IConfiguration conf
 
         var hash = BCrypt.Net.BCrypt.HashPassword(r.Password);
         var meta = $$"""{"display_name":{{System.Text.Json.JsonSerializer.Serialize(name)}}}""";
+        // No email confirmation: the account is active at once, and confirming
+        // it here creates the player's profile (trigger in 011).
         await using var cmd = db.CreateCommand("""
-            insert into auth.users(email, password_hash, raw_user_meta_data) values ($1, $2, $3::jsonb)
-            on conflict (email) do update
-              set password_hash = excluded.password_hash, raw_user_meta_data = excluded.raw_user_meta_data, updated_at = now()
-              where auth.users.email_confirmed_at is null
+            insert into auth.users(email, password_hash, raw_user_meta_data, email_confirmed_at)
+            values ($1, $2, $3::jsonb, now())
+            on conflict (email) do nothing
             returning id
             """);
         cmd.Parameters.AddWithValue(address);
         cmd.Parameters.AddWithValue(hash);
         cmd.Parameters.AddWithValue(meta);
-        // No row back: the address already belongs to a confirmed account.
         if (await cmd.ExecuteScalarAsync() is null)
         {
             return Db.Error(409, "user_already_exists", "Email này đã được sử dụng.");
         }
-        return await SendCode(address, "signup") ?? Results.Ok(new { confirmation_sent = true });
-    }
-
-    public async Task<IResult> ResendSignupCode(string emailAddress)
-    {
-        var address = NormalizeEmail(emailAddress);
-        var user = await FindUser(address);
-        // Same answer whether or not the address is registered.
-        if (user is { Confirmed: false } && await SendCode(address, "signup") is { } problem) return problem;
-        return Results.Ok(new { sent = true });
+        return await FindUser(address) is { } user
+            ? Results.Ok(await Issue(user))
+            : Db.Error(500, "server_error", "Chưa tạo được tài khoản. Hãy thử lại.");
     }
 
     public async Task<IResult> ForgotPassword(string emailAddress)
     {
         var address = NormalizeEmail(emailAddress);
         var user = await FindUser(address);
-        if (user is { Confirmed: true } && await SendCode(address, "recovery") is { } problem) return problem;
+        if (user is not null && await SendCode(address, "recovery") is { } problem) return problem;
         return Results.Ok(new { sent = true });
     }
 
     public async Task<IResult> VerifyCode(VerifyOtpRequest r)
     {
         var address = NormalizeEmail(r.Email);
-        var purpose = r.Type == "recovery" ? "recovery" : "signup";
+        // Only password reset still uses an emailed code.
+        const string purpose = "recovery";
         var expired = Db.Error(400, "otp_expired", "Mã đã hết hạn hoặc không đúng.");
 
         await using var conn = await db.OpenConnectionAsync();
@@ -137,14 +131,6 @@ public sealed partial class AuthService(NpgsqlDataSource db, IConfiguration conf
             used.Parameters.AddWithValue(purpose);
             await used.ExecuteNonQueryAsync();
         }
-        if (purpose == "signup")
-        {
-            // Confirming creates the player's profile (trigger in 011).
-            await using var confirm = new NpgsqlCommand(
-                "update auth.users set email_confirmed_at = now() where email = $1 and email_confirmed_at is null", conn, tx);
-            confirm.Parameters.AddWithValue(address);
-            await confirm.ExecuteNonQueryAsync();
-        }
         await tx.CommitAsync();
 
         var user = await FindUser(address);
@@ -158,7 +144,6 @@ public sealed partial class AuthService(NpgsqlDataSource db, IConfiguration conf
         {
             return Db.Error(400, "invalid_credentials", "Email hoặc mật khẩu chưa đúng.");
         }
-        if (!user.Confirmed) return Db.Error(400, "email_not_confirmed", "Hãy xác nhận email trước khi đăng nhập.");
         return Results.Ok(await Issue(user));
     }
 
@@ -275,15 +260,14 @@ public sealed partial class AuthService(NpgsqlDataSource db, IConfiguration conf
         };
     }
 
-    sealed record Account(Guid Id, string Email, string PasswordHash, string DisplayName, bool Confirmed)
+    sealed record Account(Guid Id, string Email, string PasswordHash, string DisplayName)
     {
         public object Public => new { id = Id, email = Email, display_name = DisplayName };
     }
 
     const string AccountColumns = """
         select u.id, u.email, u.password_hash,
-               coalesce(p.display_name, u.raw_user_meta_data->>'display_name', 'Người chơi'),
-               u.email_confirmed_at is not null
+               coalesce(p.display_name, u.raw_user_meta_data->>'display_name', 'Người chơi')
         from auth.users u left join public.profiles p on p.id = u.id
         """;
 
@@ -297,7 +281,7 @@ public sealed partial class AuthService(NpgsqlDataSource db, IConfiguration conf
         cmd.Parameters.AddWithValue(key);
         await using var row = await cmd.ExecuteReaderAsync();
         return await row.ReadAsync()
-            ? new Account(row.GetGuid(0), row.GetString(1), row.GetString(2), row.GetString(3), row.GetBoolean(4))
+            ? new Account(row.GetGuid(0), row.GetString(1), row.GetString(2), row.GetString(3))
             : null;
     }
 
@@ -324,15 +308,12 @@ public sealed class EmailSender(IConfiguration config, IHostEnvironment env, ILo
             return;
         }
         var user = config["Smtp:User"];
-        var signup = purpose == "signup";
         var message = new MimeMessage
         {
-            Subject = signup ? "Mã xác nhận tài khoản Bá Khí Game Hub" : "Mã đặt lại mật khẩu Bá Khí Game Hub",
+            Subject = "Mã đặt lại mật khẩu Bá Khí Game Hub",
             Body = new TextPart("plain")
             {
-                Text = (signup
-                        ? "Chào bạn,\n\nMã xác nhận tài khoản Bá Khí Game Hub của bạn là:\n\n"
-                        : "Chào bạn,\n\nMã đặt lại mật khẩu Bá Khí Game Hub của bạn là:\n\n") +
+                Text = "Chào bạn,\n\nMã đặt lại mật khẩu Bá Khí Game Hub của bạn là:\n\n" +
                        $"    {code}\n\nMã có hiệu lực trong 15 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.",
             },
         };

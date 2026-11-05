@@ -87,6 +87,27 @@ void main() {
     reopened.dispose();
   });
 
+  test('A new account is signed in without any code', () async {
+    final api = ApiClient(
+      prefs,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/api/auth/register');
+        expect(jsonDecode(request.body), {
+          'displayName': 'Tôi',
+          'email': 'me@example.com',
+          'password': 'matkhau123',
+        });
+        return _json(_session('a1'));
+      }),
+      connectSocket: (_) => FakeSocket(),
+    );
+    final store = AppStore(prefs, api: api);
+    await store.signUp(' Tôi ', ' me@example.com ', 'matkhau123');
+    expect(store.user!.displayName, 'Tôi');
+    store.dispose();
+    api.dispose();
+  });
+
   test('A refused token is renewed once and the call repeated', () async {
     final calls = <String>[];
     final api = ApiClient(
@@ -140,6 +161,28 @@ void main() {
     expect(store.user, isNull);
     expect(store.authNotice, sessionExpiredNotice);
     expect(prefs.getString('auth_session_v1'), isNull);
+    store.dispose();
+    api.dispose();
+  });
+
+  test('A saved session of a removed account is dropped at start', () async {
+    await prefs.setString(
+      'auth_session_v1',
+      jsonEncode({
+        ..._session('a1'),
+        'expires_at': DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
+      }),
+    );
+    final api = ApiClient(
+      prefs,
+      httpClient: MockClient((_) async => http.Response('', 401)),
+      connectSocket: (_) => FakeSocket(),
+    );
+    final store = AppStore(prefs, api: api);
+    expect(store.user, isNotNull);
+    await pumpEventQueue();
+    expect(store.user, isNull);
+    expect(store.authNotice, sessionExpiredNotice);
     store.dispose();
     api.dispose();
   });

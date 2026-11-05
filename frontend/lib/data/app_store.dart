@@ -225,15 +225,9 @@ class AppStore extends ChangeNotifier {
   Future<void> signIn(String email, String password) =>
       api!.signIn(email.trim(), password);
 
-  /// Always false: a new account must be confirmed with the emailed code.
-  Future<bool> signUp(String name, String email, String password) async {
-    await api!.register(name.trim(), email.trim(), password);
-    return false;
-  }
-
-  /// Confirms a new account with the code from the sign-up email.
-  Future<void> verifySignupCode(String email, String code) =>
-      api!.verifyCode(email.trim(), code.trim(), 'signup');
+  /// Creates the account and signs it in straight away.
+  Future<void> signUp(String name, String email, String password) =>
+      api!.register(name.trim(), email.trim(), password);
 
   /// Checks the code from the reset email. Success signs the user in and
   /// raises passwordRecovery, so the new-password screen opens.
@@ -266,9 +260,6 @@ class AppStore extends ChangeNotifier {
     passwordRecovery = false;
     notifyListeners();
   }
-
-  Future<void> resendConfirmation(String email) =>
-      api!.resendSignupCode(email.trim());
 
   Future<void> signOut() {
     // Cleared by the session listener once the sign-out arrives there.
@@ -429,7 +420,6 @@ String friendlyError(Object error) {
   if (error is ApiException) {
     return switch (error.code) {
       'invalid_credentials' => 'Email hoặc mật khẩu chưa đúng.',
-      'email_not_confirmed' => 'Hãy xác nhận email trước khi đăng nhập.',
       'user_already_exists' => 'Email này đã được sử dụng. Hãy đăng nhập, hoặc bấm “Quên mật khẩu?” nếu không nhớ mật khẩu.',
       'same_password' => 'Mật khẩu mới phải khác mật khẩu cũ.',
       'over_request_rate_limit' => 'Bạn thao tác quá nhanh. Hãy thử lại sau.',

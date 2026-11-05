@@ -36,7 +36,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _confirmPassword = TextEditingController(),
       _code = TextEditingController();
   bool _register = false, _busy = false, _obscure = true;
-  bool _awaitingConfirmation = false;
 
   /// A reset code was emailed; the form asks for it.
   bool _awaitingResetCode = false;
@@ -59,15 +58,11 @@ class _ProfilePageState extends State<ProfilePage> {
     });
     try {
       if (_register) {
-        final signedIn = await widget.store.signUp(
-          _name.text,
-          _email.text,
-          _password.text,
-        );
+        // A new account is signed in straight away.
+        await widget.store.signUp(_name.text, _email.text, _password.text);
         if (mounted) {
           setState(() {
-            _message = signedIn ? 'Đã tạo tài khoản.' : 'Đã gửi mã xác nhận tới email. Nhập mã bên dưới để kích hoạt tài khoản (kiểm tra cả thư rác).';
-            _awaitingConfirmation = !signedIn;
+            _message = 'Đã tạo tài khoản.';
             _awaitingResetCode = false;
             _register = false;
           });
@@ -76,33 +71,6 @@ class _ProfilePageState extends State<ProfilePage> {
         await widget.store.signIn(_email.text, _password.text);
       }
       if (mounted) _password.clear();
-    } catch (e) {
-      if (mounted) setState(() => _message = friendlyError(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _resendConfirmation() async {
-    final email = _email.text.trim();
-    if (!_emailPattern.hasMatch(email)) {
-      setState(
-        () => _message = 'Nhập đúng email đã đăng ký trước khi gửi lại.',
-      );
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _message = null;
-    });
-    try {
-      await widget.store.resendConfirmation(email);
-      if (mounted) {
-        setState(
-          () =>
-              _message = 'Đã gửi lại email xác nhận. Hãy kiểm tra cả thư rác.',
-        );
-      }
     } catch (e) {
       if (mounted) setState(() => _message = friendlyError(e));
     } finally {
@@ -132,7 +100,6 @@ class _ProfilePageState extends State<ProfilePage> {
           () {
             _message = 'Nếu email này đã đăng ký, mã đặt lại mật khẩu sẽ đến trong ít phút (kiểm tra cả thư rác). Nhập mã bên dưới.';
             _awaitingResetCode = true;
-            _awaitingConfirmation = false;
           },
         );
       }
@@ -143,7 +110,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Sign-up confirmation or password reset, whichever code was sent.
+  /// Checks the code from the password reset email.
   Future<void> _verifyCode() async {
     final email = _email.text.trim();
     final code = _code.text.trim();
@@ -156,14 +123,9 @@ class _ProfilePageState extends State<ProfilePage> {
       _message = null;
     });
     try {
-      if (_awaitingResetCode) {
-        await widget.store.verifyRecoveryCode(email, code);
-      } else {
-        await widget.store.verifySignupCode(email, code);
-      }
+      await widget.store.verifyRecoveryCode(email, code);
       if (mounted) {
         setState(() {
-          _awaitingConfirmation = false;
           _awaitingResetCode = false;
           _code.clear();
         });
@@ -389,8 +351,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       onPressed: _busy ? null : _forgotPassword,
                       child: const Text('Quên mật khẩu?'),
                     ),
-                  if ((_awaitingConfirmation || _awaitingResetCode) &&
-                      !_register) ...[
+                  if (_awaitingResetCode && !_register) ...[
                     const SizedBox(height: 12),
                     TextField(
                       controller: _code,
@@ -398,11 +359,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       keyboardType: TextInputType.number,
                       maxLength: 10,
                       autofillHints: const [AutofillHints.oneTimeCode],
-                      decoration: InputDecoration(
-                        labelText: _awaitingResetCode
-                            ? 'Mã đặt lại mật khẩu'
-                            : 'Mã xác nhận tài khoản',
-                        border: const OutlineInputBorder(),
+                      decoration: const InputDecoration(
+                        labelText: 'Mã đặt lại mật khẩu',
+                        border: OutlineInputBorder(),
                       ),
                       onSubmitted: (_) {
                         if (!_busy) _verifyCode();
@@ -413,12 +372,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: const Text('Xác nhận mã'),
                     ),
                   ],
-                  if (_awaitingConfirmation && !_register)
-                    TextButton.icon(
-                      onPressed: _busy ? null : _resendConfirmation,
-                      icon: const Icon(Icons.mark_email_unread_outlined),
-                      label: const Text('Gửi lại mã xác nhận'),
-                    ),
                   if (widget.onContinueAsGuest != null)
                     TextButton(
                       onPressed: _busy ? null : widget.onContinueAsGuest,

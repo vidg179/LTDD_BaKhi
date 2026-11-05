@@ -57,12 +57,12 @@ builder.Services.AddSwaggerGen(c =>
         Description =
             "Backend của đồ án Bá Khí Game Hub (Sudoku, Xếp hình, Caro, Rubik): ASP.NET Core + PostgreSQL, " +
             "tự triển khai trên VPS.\n\n" +
-            "- **Tài khoản:** đăng ký, xác nhận bằng mã gửi qua email, đăng nhập trả về JWT.\n" +
+            "- **Tài khoản:** đăng ký là đăng nhập luôn, đăng nhập trả về JWT, quên mật khẩu bằng mã gửi qua email.\n" +
             "- **Luật chơi và chống gian lận:** hàm SQL trong PostgreSQL; mỗi yêu cầu chạy với quyền của người gọi " +
             "(Row Level Security).\n" +
             "- **Realtime:** WebSocket `/ws` đẩy tin nhắn, lời mời và nước đi Caro tới hai người chơi.\n\n" +
-            "**Cách thử:** `POST /api/auth/register` → nhập mã trong email ở `POST /api/auth/verify-otp` " +
-            "(hoặc `POST /api/auth/login`) → sao chép `access_token` → bấm **Authorize** và dán vào.",
+            "**Cách thử:** `POST /api/auth/register` (hoặc `POST /api/auth/login`) → sao chép `access_token` " +
+            "→ bấm **Authorize** và dán vào.",
     });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -108,11 +108,9 @@ app.MapGet("/api/health", async (NpgsqlDataSource source) =>
 var auth = app.MapGroup("/api/auth").WithTags("Auth").RequireRateLimiting("auth");
 
 auth.MapPost("/register", (RegisterRequest r, AuthService s) => s.Register(r))
-    .WithSummary("Đăng ký tài khoản; mã xác nhận 6 số được gửi qua email");
+    .WithSummary("Đăng ký tài khoản và đăng nhập luôn; trả về access_token");
 auth.MapPost("/verify-otp", (VerifyOtpRequest r, AuthService s) => s.VerifyCode(r))
-    .WithSummary("Xác nhận mã từ email (type: signup hoặc recovery); trả về access_token");
-auth.MapPost("/resend-otp", (EmailRequest r, AuthService s) => s.ResendSignupCode(r.Email))
-    .WithSummary("Gửi lại mã xác nhận đăng ký (tối đa 1 lần mỗi phút)");
+    .WithSummary("Xác nhận mã đặt lại mật khẩu từ email; trả về access_token để đặt mật khẩu mới");
 auth.MapPost("/login", (LoginRequest r, AuthService s) => s.Login(r))
     .WithSummary("Đăng nhập; trả về access_token (JWT, 1 giờ) và refresh_token (30 ngày)");
 auth.MapPost("/refresh", (RefreshRequest r, AuthService s) => s.Refresh(r.RefreshToken))

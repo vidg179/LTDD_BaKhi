@@ -13,24 +13,14 @@ import 'package:bakhi_gameapp/ui/profile_page.dart';
 class FakeAuthStore extends AppStore {
   FakeAuthStore(super.preferences);
   int signUpCalls = 0;
-  int resendCalls = 0;
   @override
   bool get configured => true;
   @override
-  Future<bool> signUp(String name, String email, String password) async {
+  Future<void> signUp(String name, String email, String password) async {
     signUpCalls++;
-    return false;
-  }
-
-  @override
-  Future<void> resendConfirmation(String email) async {
-    resendCalls++;
   }
 
   final verified = <String>[];
-  @override
-  Future<void> verifySignupCode(String email, String code) async =>
-      verified.add('signup:$email:$code');
   @override
   Future<void> verifyRecoveryCode(String email, String code) async =>
       verified.add('recovery:$email:$code');
@@ -119,7 +109,7 @@ void main() {
   });
 
   testWidgets(
-    'Registration validates repeated password and can resend confirmation',
+    'Registration validates the repeated password and needs no code',
     (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1;
@@ -161,18 +151,8 @@ void main() {
       await tester.tap(find.text('Tạo tài khoản'));
       await tester.pumpAndSettle();
       expect(authStore.signUpCalls, 1);
-      expect(find.text('Gửi lại mã xác nhận'), findsOneWidget);
-      await tester.tap(find.text('Gửi lại mã xác nhận'));
-      await tester.pumpAndSettle();
-      expect(authStore.resendCalls, 1);
-      expect(find.textContaining('Đã gửi lại email xác nhận'), findsOneWidget);
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Mã xác nhận tài khoản'),
-        '654321',
-      );
-      await tester.tap(find.text('Xác nhận mã'));
-      await tester.pumpAndSettle();
-      expect(authStore.verified, ['signup:player@example.com:654321']);
+      expect(find.text('Đã tạo tài khoản.'), findsOneWidget);
+      expect(find.text('Xác nhận mã'), findsNothing);
     },
   );
 

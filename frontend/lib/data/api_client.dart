@@ -120,7 +120,20 @@ class ApiClient {
         unawaited(_preferences.remove(_sessionKey));
       }
     }
-    if (_session != null) unawaited(_openSocket());
+    if (_session != null) {
+      unawaited(_openSocket());
+      unawaited(_checkSession());
+    }
+  }
+
+  /// A saved session may belong to an account the server no longer knows:
+  /// asking who we are refreshes it, or signs out when that fails.
+  Future<void> _checkSession() async {
+    try {
+      await get('/api/auth/me');
+    } catch (_) {
+      // Offline: keep the session; it is checked again on the next call.
+    }
   }
 
   static const _sessionKey = 'auth_session_v1';
@@ -168,15 +181,20 @@ class ApiClient {
     ),
   );
 
-  Future<void> register(String name, String email, String password) =>
-      _send(
-        'POST',
-        '/api/auth/register',
-        body: {'displayName': name, 'email': email, 'password': password},
-        signedIn: false,
+  /// Creates the account; the answer is already a signed-in session.
+  Future<void> register(String name, String email, String password) async =>
+      _setSession(
+        AuthSession.fromResponse(
+          await _send(
+            'POST',
+            '/api/auth/register',
+            body: {'displayName': name, 'email': email, 'password': password},
+            signedIn: false,
+          ),
+        ),
       );
 
-  /// type: signup or recovery. A right code signs the player in.
+  /// type: recovery (password reset). A right code signs the player in.
   Future<void> verifyCode(String email, String code, String type) async =>
       _setSession(
         AuthSession.fromResponse(
@@ -188,13 +206,6 @@ class ApiClient {
           ),
         ),
       );
-
-  Future<void> resendSignupCode(String email) => _send(
-    'POST',
-    '/api/auth/resend-otp',
-    body: {'email': email},
-    signedIn: false,
-  );
 
   Future<void> forgotPassword(String email) => _send(
     'POST',

@@ -9,7 +9,7 @@
 
 | Module | Đã triển khai |
 | --- | --- |
-| Tài khoản | Đăng ký email/mật khẩu (báo đúng khi email đã có tài khoản), xác nhận bằng mã 6 số gửi qua email, đăng nhập (JWT), quên mật khẩu (mã qua email → màn đặt mật khẩu mới), đăng xuất, giữ phiên trên máy và tự gia hạn bằng refresh token |
+| Tài khoản | Đăng ký email/mật khẩu là vào chơi ngay, không cần mã xác nhận (báo đúng khi email đã có tài khoản), đăng nhập (JWT), quên mật khẩu (mã qua email → màn đặt mật khẩu mới), đăng xuất, giữ phiên trên máy và tự gia hạn bằng refresh token |
 | Sudoku | Dễ/vừa/khó chấm theo kỹ thuật giải (single / khóa ứng viên, cặp, bộ ba / nâng cao), đề duy nhất một lời giải, ghi chú, kiểm tra lỗi, đồng hồ, tính điểm |
 | Xếp hình | Puzzle ảnh trượt ô: dễ 3×3, vừa 4×4, khó 5×5; 3 ảnh có sẵn hoặc chọn ảnh từ thư viện; xem ảnh mẫu và kiểm tra hoàn thành |
 | Caro | Bàn 15×15; máy dễ đi ngẫu nhiên gần quân, vừa đánh giá thế cờ, khó tìm kiếm negamax alpha-beta 4 lớp (thắng ~71% trước mức vừa); luật chặn hai đầu; kiểm tra thắng/thua/hòa |

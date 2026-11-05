@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-// End-to-end check of a running BaKhi_API in Development (no SMTP): codes
-// are read from the API's console log.
+// End-to-end check of a running BaKhi_API in Development (no SMTP): password
+// reset codes are read from the API's console log.
 //   API_URL=http://localhost:5080 CODE_LOG=<file with the API output> node api.mjs
 const api = process.env.API_URL ?? 'http://localhost:5080';
 const codeLog = process.env.CODE_LOG;
@@ -39,9 +39,9 @@ const run = Date.now().toString(36);
 async function newPlayer(name) {
   const email = `${name.normalize("NFD").replace(/[^A-Za-z]/g, "").toLowerCase()}.${run}@example.com`;
   const password = 'matkhau123';
-  check((await call('POST', '/api/auth/register', { displayName: name, email, password })).status, 200, `${name} registers`);
-  const session = await call('POST', '/api/auth/verify-otp', { email, code: await codeFor(email, 'signup'), type: 'signup' });
-  check(session.status, 200, `${name} confirms the code`);
+  // No confirmation code: registering signs the player in.
+  const session = await call('POST', '/api/auth/register', { displayName: name, email, password });
+  check([session.status, session.data.user.display_name], [200, name], `${name} registers and is signed in`);
   return { email, password, token: session.data.access_token, refresh: session.data.refresh_token, id: session.data.user.id };
 }
 
@@ -52,20 +52,11 @@ check((await call('POST', '/api/auth/register', { displayName: 'Xấu', email: '
 check((await call('POST', '/api/auth/register', { displayName: 'Yếu', email: `weak.${run}@example.com`, password: 'abcdefgh' })).data.code,
   'weak_password', 'password without digits is refused');
 
-const pendingEmail = `pending.${run}@example.com`;
-await call('POST', '/api/auth/register', { displayName: 'Chờ', email: pendingEmail, password: 'matkhau123' });
-check((await call('POST', '/api/auth/login', { email: pendingEmail, password: 'matkhau123' })).data.code,
-  'email_not_confirmed', 'unconfirmed account cannot sign in');
-check((await call('POST', '/api/auth/resend-otp', { email: pendingEmail })).data.code, 'over_email_send_rate_limit',
-  'a new code waits one minute');
-check((await call('POST', '/api/auth/verify-otp', { email: pendingEmail, code: '000000', type: 'signup' })).data.code,
-  'otp_expired', 'wrong code is refused');
-
 const a = await newPlayer('An');
 const b = await newPlayer('Bình');
 const c = await newPlayer('Chi');
 check((await call('POST', '/api/auth/register', { displayName: 'An', email: a.email, password: 'matkhau456' })).data.code,
-  'user_already_exists', 'a confirmed email cannot register again');
+  'user_already_exists', 'an email cannot register twice');
 check((await call('POST', '/api/auth/login', { email: a.email, password: 'sai12345' })).data.code,
   'invalid_credentials', 'wrong password');
 const login = await call('POST', '/api/auth/login', { email: ` ${a.email.toUpperCase()} `, password: a.password });
@@ -81,7 +72,6 @@ check((await call('GET', '/api/auth/me', undefined, a.token.slice(0, -2) + 'xx')
 const others = (await call('GET', '/api/players', undefined, b.token)).data;
 ok(others.some((p) => p.id === a.id && p.display_name === 'An'), 'players list shows confirmed players');
 ok(!others.some((p) => p.id === b.id), 'players list leaves out yourself');
-ok(!others.some((p) => p.display_name === 'Chờ'), 'unconfirmed accounts are not players');
 
 // ---------- Realtime ----------
 function listen(player) {
@@ -173,6 +163,10 @@ check((await call('GET', '/api/leaderboard/me?game=caro&difficulty=hard', undefi
 check((await call('POST', '/api/auth/forgot-password', { email: `nobody.${run}@example.com` })).status, 200,
   'unknown address gets the same answer');
 await call('POST', '/api/auth/forgot-password', { email: c.email });
+check((await call('POST', '/api/auth/forgot-password', { email: c.email })).data.code, 'over_email_send_rate_limit',
+  'a new reset code waits one minute');
+check((await call('POST', '/api/auth/verify-otp', { email: c.email, code: '000000', type: 'recovery' })).data.code,
+  'otp_expired', 'wrong reset code is refused');
 const recovery = await call('POST', '/api/auth/verify-otp', { email: c.email, code: await codeFor(c.email, 'recovery'), type: 'recovery' });
 check(recovery.status, 200, 'reset code signs the player in');
 check((await call('PUT', '/api/auth/password', { password: c.password }, recovery.data.access_token)).data.code,

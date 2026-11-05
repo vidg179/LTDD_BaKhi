@@ -15,8 +15,8 @@ Tài liệu ôn tập cho buổi bảo vệ đồ án: dùng công nghệ gì, �
 
 | Phần | Dùng để làm gì |
 | --- | --- |
-| **Đăng nhập (JWT)** | Đăng ký, xác nhận bằng mã 6 số gửi qua email, đăng nhập trả về access token (1 giờ) + refresh token (30 ngày), quên mật khẩu. Mật khẩu băm bằng **BCrypt**, mã xác nhận chỉ lưu dạng băm SHA-256 |
-| **Gmail SMTP** (thư viện **MailKit**) | Gửi email chứa mã xác nhận và mã đặt lại mật khẩu |
+| **Đăng nhập (JWT)** | Đăng ký là vào chơi ngay (không cần xác nhận email), đăng nhập trả về access token (1 giờ) + refresh token (30 ngày), quên mật khẩu bằng mã gửi qua email. Mật khẩu băm bằng **BCrypt**, mã đặt lại chỉ lưu dạng băm SHA-256 |
+| **Gmail SMTP** (thư viện **MailKit**) | Gửi email chứa mã đặt lại mật khẩu |
 | **Npgsql** | Thư viện C# kết nối PostgreSQL |
 | **Row Level Security (RLS)** | Phân quyền ngay trong database: API chạy mỗi yêu cầu với quyền của đúng người chơi, nên ví dụ chỉ hai người trong cuộc mới đọc được tin nhắn |
 | **Hàm SQL** (`plpgsql`) | Luật chạy trên máy chủ: kiểm tra nước đi Caro, đáp án Sudoku, tính điểm, hết giờ, đầu hàng. App chỉ gửi yêu cầu, máy chủ quyết định |
