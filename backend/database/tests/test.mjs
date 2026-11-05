@@ -1,56 +1,29 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 
-// Executes the real migration in an embedded PostgreSQL instance. Auth is a
-// minimal fixture; hosted Supabase Auth and Realtime still require an online test.
+// Runs every migration, in order, in an embedded PostgreSQL instance: the
+// same files BaKhi_API applies to the real database when it starts.
 const db = new PGlite();
-await db.exec(`
-  create role anon;
-  create role authenticated;
-  create schema auth;
-  create table auth.users(id uuid primary key, raw_user_meta_data jsonb);
-  create function auth.uid() returns uuid language sql stable as
-    $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-  grant usage on schema auth to authenticated, anon;
-  grant execute on function auth.uid() to authenticated, anon;
-  create publication supabase_realtime;
-  -- Mirror hosted Supabase: new objects in public are granted to anon too.
-  alter default privileges in schema public grant all on tables to anon, authenticated;
-  alter default privileges in schema public grant execute on functions to anon, authenticated;
-`);
-const migration = await readFile(new URL('../migrations/001_game_app.sql', import.meta.url), 'utf8');
-await db.exec(migration);
-const caroMigration = await readFile(new URL('../migrations/002_caro_challenges.sql', import.meta.url), 'utf8');
-await db.exec(caroMigration);
-const revokeAnon = await readFile(new URL('../migrations/003_revoke_anon.sql', import.meta.url), 'utf8');
-await db.exec(revokeAnon);
-await db.exec(revokeAnon); // idempotent
-const caroRule = await readFile(new URL('../migrations/004_caro_vietnam_rule.sql', import.meta.url), 'utf8');
-await db.exec(caroRule);
-await db.exec(caroRule); // idempotent
-const verifiedResults = await readFile(new URL('../migrations/005_verified_results.sql', import.meta.url), 'utf8');
-await db.exec(verifiedResults);
-await db.exec(verifiedResults); // idempotent
-const deadlines = await readFile(new URL('../migrations/006_challenge_deadlines.sql', import.meta.url), 'utf8');
-await db.exec(deadlines);
-await db.exec(deadlines); // idempotent
-const graded = await readFile(new URL('../migrations/007_graded_sudoku.sql', import.meta.url), 'utf8');
-await db.exec(graded);
-await db.exec(graded); // idempotent
-const scoring = await readFile(new URL('../migrations/008_score_formula.sql', import.meta.url), 'utf8');
-await db.exec(scoring);
-await db.exec(scoring); // idempotent
-const cancelling = await readFile(new URL('../migrations/009_cancel_challenge.sql', import.meta.url), 'utf8');
-await db.exec(cancelling);
-await db.exec(cancelling); // idempotent
-const ranking = await readFile(new URL('../migrations/010_leaderboard_rank.sql', import.meta.url), 'utf8');
-await db.exec(ranking);
-await db.exec(ranking); // idempotent
+const files = (await readdir(new URL('../migrations/', import.meta.url))).filter((f) => f.endsWith('.sql')).sort();
+for (const file of files) {
+  const sql = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
+  await db.exec(sql);
+  // From 003 on every file must be safe to run again.
+  if (file >= '003') await db.exec(sql);
+}
 const a = '10000000-0000-4000-8000-000000000001';
 const b = '10000000-0000-4000-8000-000000000002';
 const c = '10000000-0000-4000-8000-000000000003';
-await db.query(`insert into auth.users values ($1, '{"display_name":"An"}'), ($2, '{"display_name":"Bình"}'), ($3, '{"display_name":"Chi"}')`, [a,b,c]);
+const pending = '10000000-0000-4000-8000-000000000004';
+await db.query(`insert into auth.users(id, email, password_hash, raw_user_meta_data, email_confirmed_at) values
+  ($1, 'an@example.com', 'x', '{"display_name":"An"}', now()),
+  ($2, 'binh@example.com', 'x', '{"display_name":"Bình"}', now()),
+  ($3, 'chi@example.com', 'x', '{"display_name":"Chi"}', now()),
+  ($4, 'cho@example.com', 'x', '{"display_name":"Chờ"}', null)`, [a, b, c, pending]);
+// Realtime: every announced change, as BaKhi_API receives it.
+const announced = [];
+await db.listen('bakhi_changes', (payload) => announced.push(JSON.parse(payload)));
 let assertions = 0;
 function check(value, expected, label) { assert.deepEqual(value, expected, label); assertions++; }
 async function asUser(id) { await db.exec(`reset role; set role authenticated; set request.jwt.claim.sub = '${id}';`); }
@@ -61,7 +34,7 @@ async function denied(sql, params = []) {
   await assert.rejects(() => db.query(sql, params), (e) => e.code === '42501', sql); assertions++;
 }
 await asUser(a);
-check((await db.query('select * from public.profiles')).rows.length, 3, 'signup trigger creates profiles');
+check((await db.query('select * from public.profiles')).rows.length, 3, 'only confirmed accounts get a profile');
 await rejected('select * from public.challenge_puzzles');
 // Scores reach the leaderboard only through server-timed sessions.
 await denied(`insert into game_results(id,user_id,game,difficulty,seconds,mistakes,moves,outcome,played_at) values(gen_random_uuid(),$1,'sudoku','hard',0,0,60,'win',now())`, [a]);
@@ -382,6 +355,29 @@ check(await challengeRow(liveCaro), {status: 'accepted', winner_id: null, end_re
   'Sudoku functions cannot touch a Caro challenge');
 await asUser(c);
 check((await db.query('select * from caro_matches')).rows.length,0,'third party cannot read Caro board');
+// Accounts and realtime announcements (000, 011).
+await db.exec('reset role;');
+await db.query('update auth.users set email_confirmed_at = now() where id = $1', [pending]);
+check((await db.query('select display_name from profiles where id = $1', [pending])).rows, [{display_name: 'Chờ'}],
+  'confirming the email creates the profile');
+await asUser(a);
+await denied('select * from auth.users');
+await denied('select * from auth.email_codes');
+await denied('select * from auth.refresh_tokens');
+announced.length = 0;
+await db.query(`insert into messages(id,sender_id,recipient_id,body) values(gen_random_uuid(),$1,$2,'Có ai không?')`, [a, b]);
+const announcedCaro = await newChallenge('caro');
+await asUser(a);
+await db.query('select start_caro_challenge($1)', [announcedCaro]);
+await new Promise((resolve) => setTimeout(resolve, 50));
+const seen = (table) => announced.filter((n) => n.table === table);
+check(seen('messages').map((n) => [n.op, [...n.users].sort()]), [['INSERT', [a, b].sort()]],
+  'a new message is announced to both players');
+check(['INSERT', 'UPDATE'].every((op) => seen('challenges').some((n) => n.op === op && n.key === announcedCaro)), true,
+  'invite and acceptance are announced');
+check(seen('caro_matches').length > 0 && seen('caro_matches').every((n) => n.key === announcedCaro), true,
+  'Caro board changes are announced by challenge id');
+check(announced.some((n) => n.users.includes(c)), false, 'a third player is never told');
 await db.exec(`reset role; set role anon; set request.jwt.claim.sub = '';`);
 await rejected('select * from profiles');
 await rejected(`select create_challenge($1,'easy')`,[b]);

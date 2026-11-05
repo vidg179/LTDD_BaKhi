@@ -4,7 +4,7 @@ import '../data/app_store.dart';
 import '../games/game_models.dart';
 import 'app_theme.dart';
 
-/// ASCII addresses only: Supabase rejects accented ones such as
+/// ASCII addresses only: the API rejects accented ones such as
 /// nguyễn@gmail.com, and the form can say so before any request.
 final _emailPattern = RegExp(
   r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$",
@@ -127,7 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
       await widget.store.requestPasswordReset(email);
       if (mounted) {
         setState(
-          // Supabase answers the same for unknown addresses, so do not
+          // The API answers the same for unknown addresses, so do not
           // claim the account exists.
           () {
             _message = 'Nếu email này đã đăng ký, mã đặt lại mật khẩu sẽ đến trong ít phút (kiểm tra cả thư rác). Nhập mã bên dưới.';

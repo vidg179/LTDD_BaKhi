@@ -144,5 +144,4 @@ revoke all on function public.create_game_challenge(uuid,text,text),
 grant execute on function public.create_game_challenge(uuid,text,text),
   public.start_caro_challenge(uuid), public.play_caro_move(uuid,integer) to authenticated;
 
-alter publication supabase_realtime add table public.caro_matches;
 commit;

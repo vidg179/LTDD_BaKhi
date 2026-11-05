@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'data/app_store.dart';
 import 'data/chat_notifier.dart';
@@ -14,39 +12,13 @@ import 'ui/app_shell.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  var url = const String.fromEnvironment('SUPABASE_URL');
-  var key = const String.fromEnvironment('SUPABASE_ANON_KEY');
-  SupabaseClient? client;
-  String? startupError;
-  if (url.isEmpty || key.isEmpty) {
-    try {
-      final localConfig = Map<String, dynamic>.from(
-        jsonDecode(await rootBundle.loadString('config/supabase.json')),
-      );
-      url = localConfig['SUPABASE_URL']?.toString().trim() ?? '';
-      key = localConfig['SUPABASE_ANON_KEY']?.toString().trim() ?? '';
-    } catch (_) {
-      // A distributable build may intentionally omit the local config file.
-    }
-  }
-  if (url.isNotEmpty && key.isNotEmpty) {
-    try {
-      await Supabase.initialize(url: url, publishableKey: key);
-      client = Supabase.instance.client;
-    } catch (_) {
-      startupError =
-          'Chưa khởi tạo được dịch vụ online. Các game vẫn hoạt động trên máy.';
-    }
-  } else {
-    startupError =
-        'Chưa tìm thấy cấu hình Supabase. Hãy kiểm tra config/supabase.json.';
-  }
-  final store = AppStore(
-    await SharedPreferences.getInstance(),
-    client: client,
-    startupError: startupError,
-  );
+  final preferences = await SharedPreferences.getInstance();
+  // The group's own backend; see backend/ (BaKhi_API).
+  final api = ApiClient(preferences);
+  final store = AppStore(preferences, api: api);
   runApp(MyApp(store: store));
+  // A phone that slept may have lost the realtime connection silently.
+  AppLifecycleListener(onResume: api.reconnect);
   store.syncResults();
   // Notifications are a convenience: a failure must not stop the app.
   unawaited(ChatNotifier(store).start().catchError((Object _) {}));

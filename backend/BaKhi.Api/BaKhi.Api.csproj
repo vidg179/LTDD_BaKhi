@@ -6,7 +6,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- The SQL migrations travel inside the DLL; Migrator applies them at start-up. -->
   <ItemGroup>
+    <EmbeddedResource Include="..\database\migrations\*.sql" LogicalName="migrations/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageReference Include="MailKit" Version="4.18.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
   </ItemGroup>
 

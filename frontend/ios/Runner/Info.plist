@@ -4,13 +4,6 @@
 <dict>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array><string>io.bakhi.gameapp</string></array>
-		</dict>
-	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera dùng để quét màu 6 mặt Rubik và tìm hướng giải.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

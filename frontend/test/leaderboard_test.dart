@@ -4,20 +4,13 @@ import 'package:bakhi_gameapp/ui/leaderboard_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show User;
 
 class FakeLeaderboardStore extends AppStore {
   FakeLeaderboardStore(super.preferences, {required this.inTop});
   final bool inTop;
 
   @override
-  User? get user => const User(
-    id: 'me',
-    appMetadata: {},
-    userMetadata: {},
-    aud: 'authenticated',
-    createdAt: '2026-10-26T00:00:00Z',
-  );
+  AppUser? get user => const AppUser(id: 'me');
 
   @override
   String get owner => 'me';

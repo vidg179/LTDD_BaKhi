@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthException, User, UserIdentity;
 import 'package:bakhi_gameapp/main.dart';
 import 'package:bakhi_gameapp/data/app_store.dart';
 import 'package:bakhi_gameapp/games/game_models.dart';
@@ -50,15 +48,6 @@ class FakeAuthStore extends AppStore {
     notifyListeners();
   }
 }
-
-User _user({List<UserIdentity>? identities}) => User(
-  id: 'u1',
-  appMetadata: const {},
-  userMetadata: const {},
-  aud: 'authenticated',
-  createdAt: '2026-10-25T00:00:00Z',
-  identities: identities,
-);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -221,66 +210,35 @@ void main() {
     expect(find.textContaining('gồm cả chữ và số'), findsOneWidget);
     expect(authStore.signUpCalls, 0);
     expect(
-      friendlyError(const AuthException('x', code: 'email_address_invalid')),
+      friendlyError(
+        const ApiException(400, 'email_address_invalid', 'Email chưa hợp lệ.'),
+      ),
       'Email chưa hợp lệ.',
     );
   });
 
   test('Sign-up for a registered email is reported as a duplicate', () {
-    // Supabase hides existing accounts behind a user without identities.
-    expect(isExistingAccount(_user(identities: const [])), isTrue);
-    expect(
-      isExistingAccount(
-        _user(
-          identities: const [
-            UserIdentity(
-              id: 'i1',
-              userId: 'u1',
-              identityData: {},
-              identityId: 'i1',
-              provider: 'email',
-              createdAt: null,
-              lastSignInAt: null,
-              updatedAt: null,
-            ),
-          ],
-        ),
-      ),
-      isFalse,
-    );
-    expect(isExistingAccount(null), isFalse);
     expect(
       friendlyError(
-        const AuthException(
-          'User already registered',
-          code: 'user_already_exists',
-        ),
+        const ApiException(409, 'user_already_exists', 'Email này đã được sử dụng.'),
       ),
       contains('đã được sử dụng'),
     );
   });
 
-  test('Unusable email links get their own message', () {
+  test('API errors read as Vietnamese messages', () {
     expect(
-      isEmailLinkError(
-        const AuthException(
-          'Email link is invalid or has expired',
-          statusCode: 'otp_expired',
-        ),
-      ),
-      isTrue,
+      friendlyError(const ApiException(400, 'otp_expired', '')),
+      contains('Mã đã hết hạn'),
+    );
+    // Game rules explain themselves.
+    expect(
+      friendlyError(const ApiException(400, 'rule', 'Chưa đến lượt của bạn.')),
+      'Chưa đến lượt của bạn.',
     );
     expect(
-      isEmailLinkError(
-        const AuthException(
-          'Code verifier could not be found in local storage.',
-        ),
-      ),
-      isTrue,
-    );
-    expect(
-      isEmailLinkError(const AuthException('x', code: 'invalid_credentials')),
-      isFalse,
+      friendlyError(const ApiException(401, 'session_expired', '')),
+      sessionExpiredNotice,
     );
   });
 

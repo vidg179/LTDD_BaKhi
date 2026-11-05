@@ -6,7 +6,6 @@ import 'package:bakhi_gameapp/ui/community_page.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show User;
 
 class FakeCommunityStore extends AppStore {
   FakeCommunityStore(super.preferences);
@@ -14,13 +13,7 @@ class FakeCommunityStore extends AppStore {
   final cancelled = <String>[];
 
   @override
-  User? get user => const User(
-    id: 'me',
-    appMetadata: {},
-    userMetadata: {'display_name': 'Tôi'},
-    aud: 'authenticated',
-    createdAt: '2026-10-26T00:00:00Z',
-  );
+  AppUser? get user => const AppUser(id: 'me', displayName: 'Tôi');
 
   @override
   String get owner => 'me';

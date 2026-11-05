@@ -1,7 +1,7 @@
 -- Run after 002_caro_challenges.sql. Safe to run again.
--- Hosted Supabase grants new functions and tables to `anon` through default
--- privileges, which `revoke ... from public` does not remove. The functions
--- already reject callers without auth.uid(); this closes the outer door too.
+-- New functions and tables are executable/readable by PUBLIC (and so by
+-- `anon`) unless revoked. The functions already reject callers without
+-- auth.uid(); this closes the outer door too.
 begin;
 
 revoke execute on function public.create_challenge(uuid,text), public.create_game_challenge(uuid,text,text),

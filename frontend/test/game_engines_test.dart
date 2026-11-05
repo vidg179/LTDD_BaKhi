@@ -65,7 +65,7 @@ void main() {
   });
   test('Online challenge templates are graded at their own level', () {
     // Same scale as solo play: re-grade the boards shipped in the migration.
-    final sql = File('../backend/supabase/migrations/007_graded_sudoku.sql')
+    final sql = File('../backend/database/migrations/007_graded_sudoku.sql')
         .readAsStringSync();
     final templates = RegExp(r"\('(easy|medium|hard)', '([0-9]{81})'\)")
         .allMatches(sql)

@@ -1,17 +1,51 @@
-# BaKhi game API on the VPS, at /opt/bakhi-game-api.
+# BaKhi game API and its PostgreSQL database on the VPS, at /opt/bakhi-game-api.
 # HTTPS comes from the Caddy container that already runs on the server
-# (project /opt/bakhi-api): it joins that project's network and Caddy
-# proxies game.<DOMAIN> here (see Caddyfile.snippet).
+# (project /opt/bakhi-api): the API joins that project's network and Caddy
+# proxies game.<DOMAIN> here (see Caddyfile.snippet). The database is not
+# reachable from the internet: only from the API and from the VPS itself
+# (127.0.0.1:5433, for backups or an SSH tunnel).
 services:
+  db:
+    image: postgres:17-alpine
+    container_name: bakhi-game-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bakhi
+      POSTGRES_USER: bakhi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # The VPS has about 1 GB of RAM.
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=40"]
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bakhi -d bakhi"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   game-api:
     build: .
     container_name: bakhi-game-api
     env_file: .env
+    environment:
+      ConnectionStrings__Default: "Host=db;Database=bakhi;Username=bakhi;Password=${POSTGRES_PASSWORD}"
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - edge
+      - internal
+
+volumes:
+  db-data:
 
 networks:
+  internal:
   edge:
     name: bakhi-api_default
     external: true

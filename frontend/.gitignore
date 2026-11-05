@@ -46,7 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
-# Local backend configuration (never use service_role keys in the app).
+# Old local backend configuration (no longer used; may hold keys).
 config/supabase.json
 
 # AI assistant tooling and personal editor settings, not part of the app.

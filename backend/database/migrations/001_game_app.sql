@@ -1,4 +1,4 @@
--- Run once in a new Supabase project. No service-role key belongs in Flutter.
+-- Base schema: profiles, results, messages, Sudoku challenges. Runs after 000_auth.sql.
 begin;
 
 create table public.profiles (
@@ -213,5 +213,4 @@ revoke all on function public.handle_new_user() from public;
 revoke all on function public.create_challenge(uuid,text), public.respond_challenge(uuid,boolean), public.start_challenge(uuid), public.submit_challenge(uuid,integer[],integer) from public;
 grant execute on function public.create_challenge(uuid,text), public.respond_challenge(uuid,boolean), public.start_challenge(uuid), public.submit_challenge(uuid,integer[],integer) to authenticated;
 
-alter publication supabase_realtime add table public.messages, public.challenges;
 commit;

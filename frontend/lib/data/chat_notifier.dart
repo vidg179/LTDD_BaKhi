@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_store.dart';
 
@@ -46,7 +45,7 @@ class ChatNotifier {
 
   final AppStore store;
   final FlutterLocalNotificationsPlugin _plugin;
-  RealtimeChannel? _channel;
+  StreamSubscription<RealtimeEvent>? _subscription;
   String? _listeningFor;
   final Map<String, String> _names = {};
   int _nextId = 0;
@@ -63,7 +62,7 @@ class ChatNotifier {
   );
 
   Future<void> start() async {
-    if (store.client == null || kIsWeb) return;
+    if (store.api == null || kIsWeb) return;
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -78,37 +77,20 @@ class ChatNotifier {
   void _follow() {
     final uid = store.user?.id;
     if (uid == _listeningFor) return;
-    final old = _channel;
-    _channel = null;
+    unawaited(_subscription?.cancel());
+    _subscription = null;
     _listeningFor = uid;
-    if (old != null) unawaited(store.client!.removeChannel(old));
     if (uid == null) return;
     unawaited(_askPermission());
-    _channel = store.client!
-        .channel('notify-$uid')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'messages',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'recipient_id',
-            value: uid,
-          ),
-          callback: (payload) => _show('messages', payload.newRecord),
-        )
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'challenges',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'opponent_id',
-            value: uid,
-          ),
-          callback: (payload) => _show('challenges', payload.newRecord),
-        )
-        .subscribe();
+    _subscription = store.api!.events.listen((event) {
+      if (event.op != 'INSERT') return;
+      if (event.table == 'messages' && event.row['recipient_id'] == uid) {
+        unawaited(_show('messages', event.row));
+      } else if (event.table == 'challenges' &&
+          event.row['opponent_id'] == uid) {
+        unawaited(_show('challenges', event.row));
+      }
+    });
   }
 
   Future<void> _askPermission() async {
@@ -158,13 +140,8 @@ class ChatNotifier {
   Future<void> _loadName(String id) async {
     if (_names.containsKey(id)) return;
     try {
-      final row = await store.client!
-          .from('profiles')
-          .select('display_name')
-          .eq('id', id)
-          .maybeSingle()
-          .timeout(networkTimeout);
-      final name = row?['display_name'] as String?;
+      final row = await store.api!.get('/api/players/$id');
+      final name = row is Map ? row['display_name'] as String? : null;
       if (name != null) _names[id] = name;
     } catch (_) {
       // Fall back to a generic name.

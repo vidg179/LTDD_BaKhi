@@ -55,4 +55,5 @@ public record CaroMoveRequest(
 
 public record SendMessageRequest(
     [property: Required, Description("Id người nhận")] Guid RecipientId,
-    [property: Required, Description("Nội dung, 1–2000 ký tự"), DefaultValue("Chào bạn!")] string Body);
+    [property: Required, Description("Nội dung, 1–2000 ký tự"), DefaultValue("Chào bạn!")] string Body,
+    [property: Description("Mã tin nhắn do app tạo; gửi lại cùng mã không tạo tin trùng")] Guid? Id = null);
